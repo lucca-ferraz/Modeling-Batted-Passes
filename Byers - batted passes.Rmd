@@ -1,0 +1,210 @@
+---
+title: "Byers - batted passes"
+output: html_document
+date: "2024-06-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r read in data}
+library(tidyverse)
+library(readxl)
+batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
+batted_passes
+
+# install.packages("nflverse")
+
+library(nflverse)
+pbp_data <- nflfastR::load_pbp()
+
+player_data <- nflreadr::load_players()
+
+player_data <- player_data |> 
+  filter(status == "ACT")
+```
+
+
+```{r looking at pass location/depth}
+batted_passes <- batted_passes |> 
+  janitor::clean_names()
+
+small_data <- batted_passes |> 
+  select(direction, intended, togo, down, play_id, defender1, defender2, description, player)
+
+direction_data <- small_data |> 
+  group_by(direction) |> 
+  summarize(direction_count = n()) |> 
+  mutate(pass_location = direction) |> 
+  separate(direction, sep=" ", c("depth", "direction"))
+
+
+direction_data |>
+  ggplot() +
+  geom_col(aes(x = pass_location, y = direction_count))
+```
+
+
+```{r merge data - Lucca}
+#all_plays2023 <- nflreadr::load_pbp()
+library(readxl)
+excel_batted <- batted_passes
+
+excel_batted$is_batted <- 1
+excel_simple <- excel_batted |> 
+  select(week,year,  home_team = home, away_team = away, play_id, is_batted)
+excel_batted |> 
+  filter(year == 2023) |> 
+  count()
+
+all_plays2023 <- left_join(all_plays2023, excel_simple)
+all_plays2023$is_batted <- all_plays2023$is_batted |> 
+  replace_na(0)
+pass_plays2023 <- all_plays2023 |> 
+  filter(play_type == "pass")
+sum(pass_plays2023$is_batted)
+
+#colnames(pass_plays2023)
+
+
+```
+
+
+```{r reconfigure data to get wanted variables}
+batted_relevant <- pass_plays2023 |> 
+  select(pass_length, pass_location, is_batted, passer_player_id, passer_player_name, play_id, home = home_team, away = away_team, week, year) |> 
+  filter(is_batted ==1) 
+
+batted_relevant <-
+  inner_join(batted_relevant, batted_passes) |>
+  separate(defender1, sep= "-", c("defender1_number", "defender1_name"))
+
+batted_player_data <- cross_join(batted_relevant, player_data)
+
+batted_player_data <- batted_player_data |> 
+  filter(passer_player_name == short_name)
+
+colnames(batted_player_data)
+
+height_data <- batted_player_data |> 
+  group_by(height) |> 
+  summarize(batted_count = n())
+
+
+
+height_data <- height_data |> 
+  mutate(height_perc = batted_count/sum(batted_count))
+
+height_data |>
+  ggplot() +
+  geom_col(aes(x = height, y = batted_count/sum(batted_count))) +
+  labs(
+    title = "batted passes vs quarterback height in 2022-2023 season",
+    y = "percentage of total batted passes", 
+    x = "quarterback height"
+  )
+
+height_data |> 
+  ggplot()+
+  geom_line(aes(x = height, y = height_perc), color = "red") +
+  labs(
+    title = "percentage of quarterback heights in 2022-2023 season",
+    y = "percentage of all quarterbacks' heights" ,
+    x = "quarterback height"
+  )
+```
+
+
+```{r Yurko recommended fixes}
+#create graph with two lines - one depicting total batted passes for each quarterback 
+                         #   - one depicting total passes thrown for each quarterback
+
+pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
+
+pass_by_qb <- pass_by_qb |> 
+  group_by(passer_player_name) |>   
+  summarize(total_passes = n(), 
+            total_batted_passes = sum(is_batted), 
+            qb_height = mean(height)) |> 
+  filter(total_passes>100)
+
+pass_by_qb |> 
+  ggplot() +
+  geom_col(aes(x = reorder(passer_player_name, qb_height), y = total_passes)) + 
+  geom_col(aes(x = reorder(passer_player_name, qb_height), y = total_batted_passes*12), color = "blue") +
+  #facet_wrap(~height) + 
+  scale_y_continuous(
+  sec.axis = sec_axis(~. /12, name = 'total batted passes')
+  ) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  labs(
+    title = "Batted Passes vs Total Passes by QB in 2023", 
+    x = "QB", 
+    y = "total passes thrown", 
+    caption = "exlcuding QBs with less than 100 passes in the year"
+  )
+
+
+```
+
+
+
+```{r column names of pass plays 2023}
+
+colnames(pass_plays2023)
+
+```
+
+```{r batted passes by team}
+
+#which teams had the most and least batted passes while on offense
+offense_data <- batted_player_data |> 
+  group_by(offense) |> 
+  summarize(offense_batted = n())
+  
+offense_data |>
+  ggplot() +
+  geom_col(aes(x = offense, y = offense_batted))
+
+
+#which team has caused the most batted passes
+defense_data <- batted_player_data |> 
+  group_by(defense) |> 
+  summarize(defense_batted = n())
+
+defense_data |> 
+  ggplot() +
+  geom_col(aes(x = defense, y = defense_batted))
+
+```
+```{r QB tendencies}
+
+# all_plays <- nflreadr::load_pbp(2019:2023)
+
+all_plays <- all_plays |> 
+  filter(all_plays$play_type == "pass")  
+
+# get count of short, deep , left, right, middle passes of each quarterback
+# qb_tend has all 
+qb_tend <- all_plays
+qb_tend$pass_LL <- paste(qb_tend$pass_length, qb_tend$pass_location, sep=" ")
+
+qb_tend |> 
+  group_by(passer_player_name) |> 
+  summarize(total_short_right = length(pass_LL =="short right"), 
+            total_deep_right = length(pass_LL =="deep right"), 
+            total_short_left = length(pass_LL =="short left"), 
+            total_deep_left = length(pass_LL =="deep left"), 
+            total_short_middle = length(pass_LL =="short middle"), 
+            total_deep_middle = length(pass_LL =="deep middle")
+  )
+
+length(qb_tend |>  filter(passer_player_name == "A.Dalton"))
+```
+
+
+
+
+
+
