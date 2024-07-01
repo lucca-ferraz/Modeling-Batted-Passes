@@ -11,11 +11,18 @@
 # or use remotes/devtools
 # install.packages("remotes")
 # remotes::install_github("nflverse/nflreadr")
-
+install.packages("nflreadr")
 library(nflreadr)
 
 # 1. Play-by-play data via nflreadR
-pbp_data <- load_pbp()
+pbp_data <- load_pbp(seasons = c(2019, 2020, 2021, 2022, 2023))
+dim(pbp_data)
+unique(pbp_data$season)
+# [1] 2019 2020 2021 2022 2023
+pbp_data_2023 <- load_pbp(2023)
+dim(pbp_data_2023)
+unique(pbp_data_2023$season)
+# [1] 2023
 
 str(pbp_data)
 head(pbp_data)
@@ -135,10 +142,20 @@ batted_passes_data <- batted_passes_data %>%
   left_join(qb_height, by = c("passer_player_id" = "gsis_id")) %>%
   rename(qb_height = height)  
 
+# Inspecting the unique IDs in both datasets
+unique_ids_passes <- unique(batted_passes_data$passer_player_id)
+unique_ids_defenders <- unique(defender_height$gsis_id)
+
+# Checking if there is an intersection
+length(intersect(unique_ids_passes, unique_ids_defenders))
+# 0
+
 batted_passes_data <- batted_passes_data %>%
   left_join(defender_height, by = c("passer_player_id" = "gsis_id")) %>%
   rename(defender_height2 = height)
+batted_passes_data$defender_height2
 
+library(ggplot2)
 ggplot(batted_passes_data, aes(x = qb_height)) +
   geom_histogram(fill = "midnightblue") +
   labs(title = "Batted Passes by QB Height", x = "Height", y = "Count")
@@ -152,6 +169,57 @@ colnames(batted_passes_data_include_complete)
 ggplot(batted_passes_data_include_complete, aes(x = qb_height)) +
   geom_histogram(fill = "gold") +
   labs(title = "QB Height", x = "Height", y = "Count")
+
+
+library(dplyr)
+
+# Assuming both data frames are already loaded and have a 'qb_height' column
+# Add a new column to each dataframe to mark the type
+batted_passes_data$Dataset <- "Only Batted Passes"
+batted_passes_data_include_complete$Dataset <- "All Passes"
+
+# Combine the datasets
+# Identify missing columns in each dataset
+missing_in_first <- setdiff(names(batted_passes_data_include_complete), names(batted_passes_data))
+missing_in_second <- setdiff(names(batted_passes_data), names(batted_passes_data_include_complete))
+
+# Add missing columns with NA values to each dataset
+for(col in missing_in_first) {
+  batted_passes_data[[col]] <- NA
+}
+for(col in missing_in_second) {
+  batted_passes_data_include_complete[[col]] <- NA
+}
+
+# Now bind the rows
+combined_data <- rbind(batted_passes_data, batted_passes_data_include_complete)
+
+# Check the combined data structure
+str(combined_data)
+
+library(ggplot2)
+
+ggplot(combined_data, aes(x = qb_height, fill = Dataset)) +
+  geom_histogram(position = "dodge", bins = 30, alpha = 0.7) +
+  scale_fill_manual(values = c("gold", "midnightblue")) +
+  labs(title = "Comparison of QB Heights Influence (2019-2023)",
+       subtitle = "Including vs Excluding Complete Passes",
+       x = "QB Height",
+       y = "Count") +
+  theme_minimal()+
+  theme(
+    plot.title = element_text(face = "bold")  # Making the title bold
+  )
+
+ggplot(combined_data, aes(x = qb_height)) +
+  geom_histogram(fill = "steelblue", bins = 30, alpha = 0.7) +
+  facet_wrap(~ Dataset) +
+  labs(title = "Comparison of QB Heights",
+       subtitle = "Separated by Data Subset",
+       x = "QB Height",
+       y = "Count") +
+  theme_minimal()
+
 
 ggplot(batted_passes_data, aes(x = defender_height2)) +
   geom_histogram(fill = "midnightblue", bins = 50) +
@@ -177,25 +245,30 @@ colnames(batted_passes_data)
 batted_passes_data$year <- format(as.Date(batted_passes_data$game_date, format="%Y-%m-%d"), "%Y")
 
 print(unique(batted_passes_data$year))
-# 2023；2024
+# "2020" "2021" "2022" "2023" "2024"
+print(unique(pass_data$YEAR))
+# [1] 2023 2022 2021 2020 2019
+print(unique(pbp_data$game_date))
 
 print(unique(batted_passes_data$season_type))
 # regular; post
 
+print(unique(batted_passes_data$season))
+
 batted_passes_summary <- batted_passes_data |>
-  group_by(year, season_type, posteam) |>
+  group_by(season, posteam) |>
   summarise(batted_passes_count = n(), .groups = 'drop')
 
 
-ggplot(batted_passes_summary, aes(x = year, y = batted_passes_count, fill = season_type)) +
+ggplot(batted_passes_summary, aes(x = season, y = batted_passes_count, fill = season)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   facet_wrap(~posteam) +
   labs(title = "Batted Passes by Team Across Years and Season Types",
-       x = "Year",
+       x = "Season",
        y = "Number of Batted Passes",
-       fill = "Season Type") +
-  theme_minimal() +
-  scale_fill_manual(values = c("REG" = "midnightblue", "POST" = "gold")) 
+       fill = "Season") +
+  theme_minimal() #+
+#  scale_fill_manual(values = c("REG" = "midnightblue", "POST" = "gold")) 
 
 # check 2023
 data_2023 <- batted_passes_data %>% 
@@ -204,7 +277,7 @@ season_passes_summary_2023 <- data_2023 %>%
   group_by(season_type) %>%
   summarise(total_batted_passes_2023 = n(), .groups = 'drop')
 print(season_passes_summary_2023)
-# REG                319
+# REG                338
 
 # check 2024
 data_2024 <- batted_passes_data %>% 
@@ -213,7 +286,7 @@ season_passes_summary_2024 <- data_2024 %>%
   group_by(season_type) %>%
   summarise(total_batted_passes_2024 = n(), .groups = 'drop')
 print(season_passes_summary_2024)
-# POST                              17
+# POST                              18
 # REG                               15
 
 
