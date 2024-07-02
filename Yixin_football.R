@@ -23,7 +23,7 @@ pbp_data_2023 <- load_pbp(2023)
 dim(pbp_data_2023)
 unique(pbp_data_2023$season)
 # [1] 2023
-
+unique(pbp_data$season)
 str(pbp_data)
 head(pbp_data)
 summary(pbp_data)
@@ -107,7 +107,8 @@ colnames(batted_passes_data)
 unique(batted_passes_data$complete_pass) # [1] 0 1
 
 batted_passes_data <- batted_passes_data |>
-  filter(complete_pass != 1)  
+  filter(complete_pass != 1) 
+
 colnames(batted_passes_data)
 head(batted_passes_data)
 
@@ -254,6 +255,7 @@ print(unique(batted_passes_data$season_type))
 # regular; post
 
 print(unique(batted_passes_data$season))
+# [1] 2019 2020 2021 2022 2023
 
 batted_passes_summary <- batted_passes_data |>
   group_by(season, posteam) |>
@@ -263,7 +265,7 @@ batted_passes_summary <- batted_passes_data |>
 ggplot(batted_passes_summary, aes(x = season, y = batted_passes_count, fill = season)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   facet_wrap(~posteam) +
-  labs(title = "Batted Passes by Team Across Years and Season Types",
+  labs(title = "Batted Passes by Team Across Seasons",
        x = "Season",
        y = "Number of Batted Passes",
        fill = "Season") +
@@ -288,6 +290,108 @@ season_passes_summary_2024 <- data_2024 %>%
 print(season_passes_summary_2024)
 # POST                              18
 # REG                               15
+ 
+# percentage
+# Each team each year, percentage of batted passes, line, offensive/defensive
+
+total_passes <- batted_passes_data_include_complete %>%
+  group_by(season, posteam) %>%
+  summarise(total_passes_count = n(), .groups = 'drop')
+
+batted_passes_summary <- merge(batted_passes_summary, total_passes, by = c("season", "posteam"))
+
+# Calculate the percentage
+batted_passes_summary <- batted_passes_summary %>%
+  mutate(percentage_batted_passes = (batted_passes_count / total_passes_count) * 100)
+
+
+ggplot(batted_passes_summary, aes(x = as.factor(season), y = percentage_batted_passes, group = posteam)) +
+  geom_line(aes(color = posteam), size = 1) +
+  geom_point(aes(color = posteam), size = 2) +
+  facet_wrap(~posteam) +
+  labs(
+    title = "Percentage of Batted Passes by Team Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
