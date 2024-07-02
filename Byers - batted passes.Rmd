@@ -146,6 +146,17 @@ pass_by_qb |>
   )
 
 
+
+pass_by_qb |> 
+  ggplot(aes(x = height, color = factor(is_batted))) +
+  geom_density() +
+  theme(legend.position = "bottom") + 
+  labs(
+    title = "Density plots of QB height and batted passes by QB height", 
+    x = "QB Height (inches)", 
+    y = "density", 
+    color = "Batted"
+  ) 
 ```
 
 
@@ -178,30 +189,91 @@ defense_data |>
   geom_col(aes(x = defense, y = defense_batted))
 
 ```
-```{r QB tendencies}
+```{r QB tendencies data setup}
 
-# all_plays <- nflreadr::load_pbp(2019:2023)
+ all_plays <- nflreadr::load_pbp(2020:2023)
 
-all_plays <- all_plays |> 
-  filter(all_plays$play_type == "pass")  
+batted_passes <- batted_passes |> 
+  janitor::clean_names()
 
-# get count of short, deep , left, right, middle passes of each quarterback
-# qb_tend has all 
-qb_tend <- all_plays
+excel_batted <- batted_passes
+
+excel_batted$is_batted <- 1
+excel_simple <- excel_batted |> 
+  select(week,year,  home_team = home, away_team = away, play_id, is_batted)
+
+all_plays <- left_join(all_plays, excel_simple)
+all_plays$is_batted <- all_plays$is_batted |> 
+  replace_na(0)
+qb_tend <- all_plays |> 
+  filter(play_type == "pass")
+
+length(qb_tend$is_batted == "1")
+
 qb_tend$pass_LL <- paste(qb_tend$pass_length, qb_tend$pass_location, sep=" ")
 
-qb_tend |> 
+```
+
+```{r QB tendencies plotting}
+library(cowplot)
+sep_pass_qb <- qb_tend |> 
   group_by(passer_player_name) |> 
-  summarize(total_short_right = length(pass_LL =="short right"), 
-            total_deep_right = length(pass_LL =="deep right"), 
-            total_short_left = length(pass_LL =="short left"), 
-            total_deep_left = length(pass_LL =="deep left"), 
-            total_short_middle = length(pass_LL =="short middle"), 
-            total_deep_middle = length(pass_LL =="deep middle")
+  filter(n()>1000) |> 
+  count(pass_LL) 
+
+sep_pass_qb |>
+  ggplot(aes( x = pass_LL, y = n)) +
+  geom_point() + 
+  facet_wrap(~passer_player_name) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  labs(
+    title = "Pass numbers by Quarterback (2020-2023 seasons)", 
+    y = "Count", 
+    x = "Pass Length and Direction", 
+    caption = "filtering out QBs with less than 1000 total passes"
   )
 
-length(qb_tend |>  filter(passer_player_name == "A.Dalton"))
+brady_pass_by_season <- qb_tend |> 
+  filter(passer_player_name == "T.Brady") |> 
+  group_by(season) |> 
+  count(pass_LL) |> 
+  ggplot(aes(x = pass_LL, y = n, color = factor(season))) +
+  geom_point(alpha =.6) +   
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+
+
+brady_batted_by_season <- qb_tend |> 
+  filter(passer_player_name == "T.Brady") |> 
+  group_by(season, pass_LL) |> 
+  count(is_batted) |> 
+  filter(is_batted == 1) |> 
+  ggplot(aes(x = pass_LL, y = n, color = factor(season))) + 
+  geom_point(alpha = 0.6) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+
+
+plot_grid(brady_batted_by_season, brady_pass_by_season)
+
 ```
+```{r QB tendencies Yurko fixes}
+#Fractional deep right of total and etc, relationship of these amounts with batted passes, size = total pass attempt, each qb is a dot, x = deep left, y = batted percentage (similar thing for air yards)
+
+#pass type by quarterback in 2023 season
+qb_passes_2023 <- qb_tend |> 
+  filter(season == 2023) |>
+  select(passer_player_name, season, pass_LL, is_batted) |> 
+  group_by(passer_player_name) |> 
+  summarize(total_passes = sum(n())) # |>
+  # filter(n()>100) |>
+  # count(pass_LL)
+
+short_left <- qb_passes_2023 |> 
+  filter(pass_LL == "short left")
+```
+
+
+
+
 
 
 
