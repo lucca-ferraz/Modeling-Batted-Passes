@@ -27,6 +27,17 @@ player_data <- player_data |>
 
 
 ```{r looking at pass location/depth}
+
+excel_batted <- batted_passes
+
+excel_batted$is_batted <- 1
+
+excel_simple <- excel_batted |> 
+  mutate(across(c("HOME", "AWAY"), ~ str_replace(
+    string = .x, pattern = "LAR", replacement = "LA"))) |> 
+  select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
+
+
 batted_passes <- batted_passes |> 
   janitor::clean_names()
 
@@ -49,14 +60,7 @@ direction_data |>
 ```{r merge data - Lucca}
 #all_plays2023 <- nflreadr::load_pbp()
 library(readxl)
-excel_batted <- batted_passes
 
-excel_batted$is_batted <- 1
-excel_simple <- excel_batted |> 
-  select(week,year,  home_team = home, away_team = away, play_id, is_batted)
-excel_batted |> 
-  filter(year == 2023) |> 
-  count()
 
 all_plays2023 <- left_join(all_plays2023, excel_simple)
 all_plays2023$is_batted <- all_plays2023$is_batted |> 
@@ -124,7 +128,7 @@ pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_
 
 pass_by_qb <- pass_by_qb |> 
   group_by(passer_player_name) |>   
-  summarize(total_passes = n(), 
+  mutate(total_passes = n(), 
             total_batted_passes = sum(is_batted), 
             qb_height = mean(height)) |> 
   filter(total_passes>100)
@@ -148,11 +152,11 @@ pass_by_qb |>
 
 
 pass_by_qb |> 
-  ggplot(aes(x = height, color = factor(is_batted))) +
+  ggplot(aes(x = qb_height, color = factor(is_batted))) +
   geom_density() +
   theme(legend.position = "bottom") + 
   labs(
-    title = "Density plots of QB height and batted passes by QB height", 
+    title = "Density plot of batted and non-batted passes by QB height", 
     x = "QB Height (inches)", 
     y = "density", 
     color = "Batted"
@@ -189,6 +193,7 @@ defense_data |>
   geom_col(aes(x = defense, y = defense_batted))
 
 ```
+
 ```{r QB tendencies data setup}
 
  all_plays <- nflreadr::load_pbp(2020:2023)
@@ -255,6 +260,7 @@ brady_batted_by_season <- qb_tend |>
 plot_grid(brady_batted_by_season, brady_pass_by_season)
 
 ```
+
 ```{r QB tendencies Yurko fixes}
 #Fractional deep right of total and etc, relationship of these amounts with batted passes, size = total pass attempt, each qb is a dot, x = deep left, y = batted percentage (similar thing for air yards)
 
@@ -263,13 +269,267 @@ qb_passes_2023 <- qb_tend |>
   filter(season == 2023) |>
   select(passer_player_name, season, pass_LL, is_batted) |> 
   group_by(passer_player_name) |> 
-  summarize(total_passes = sum(n())) # |>
-  # filter(n()>100) |>
-  # count(pass_LL)
+  filter(n()>100) 
+  
+#short left  
+qb_passes_2023 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |> 
+  filter(pass_LL == "short left") |> 
+  summarize(total = n(), 
+            batted = sum(is_batted == "1")/total, 
+            total_passes = mean(total_passes)) |> 
+  ggplot(aes(x = total, y = batted , size = total_passes))  +
+  geom_point() + 
+  geom_text(aes(label = passer_player_name), 
+            size = 3, 
+            check_overlap = TRUE, 
+            position = position_dodge(width = 1), 
+            vjust = -1.5) + 
+  labs(
+    x = "Short Left Passes Thrown", 
+    y = "Percentage of Short Left Batted", 
+    title = "Short Left Passes Thrown by QB in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season"
 
-short_left <- qb_passes_2023 |> 
-  filter(pass_LL == "short left")
+  )
+
+#short right
+qb_passes_2023 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |> 
+  filter(pass_LL == "short right") |> 
+  summarize(total = n(), 
+            batted = sum(is_batted == "1")/total, 
+            total_passes = mean(total_passes)) |> 
+  ggplot(aes(x = total, y = batted , size = total_passes))  +
+  geom_point() + 
+  geom_text(aes(label = passer_player_name), 
+            size = 3, 
+            check_overlap = TRUE, 
+            position = position_dodge(width = 1), 
+            vjust = -1.5) + 
+  labs(
+    x = "Short Right Passes Thrown", 
+    y = "Percentage of Short Right Batted", 
+    title = "Short Right Passes Thrown by QB in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season"
+
+  )
+
+#short middle
+qb_passes_2023 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |> 
+  filter(pass_LL == "short middle") |> 
+  summarize(total = n(), 
+            batted = sum(is_batted == "1")/total, 
+            total_passes = mean(total_passes)) |> 
+  ggplot(aes(x = total, y = batted , size = total_passes))  +
+  geom_point() + 
+  geom_text(aes(label = passer_player_name), 
+            size = 3, 
+            check_overlap = TRUE, 
+            position = position_dodge(width = 1), 
+            vjust = -1.5) + 
+  labs(
+    x = "Short Middle Passes Thrown", 
+    y = "Percentage of Short Middle Batted", 
+    title = "Short Middle Passes Thrown by QB in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season"
+  )
+
+#deep middle
+qb_passes_2023 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |> 
+  filter(pass_LL == "deep middle") |> 
+  summarize(total = n(), 
+            batted = sum(is_batted == "1")/total, 
+            total_passes = mean(total_passes)) |> 
+  ggplot(aes(x = total, y = batted , size = total_passes))  +
+  geom_point() + 
+  geom_text(aes(label = passer_player_name), 
+            size = 3, 
+            check_overlap = TRUE, 
+            position = position_dodge(width = 1), 
+            vjust = -1.5) + 
+  labs(
+    x = "Deep Middle Passes Thrown", 
+    y = "Percentage of Deep Middle Batted", 
+    title = "Short Deep Passes Thrown by QB in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season"
+  )
+
+#deep right
+qb_passes_2023 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |> 
+  filter(pass_LL == "deep right") |> 
+  summarize(total = n(), 
+            batted = sum(is_batted == "1")/total, 
+            total_passes = mean(total_passes)) |> 
+  ggplot(aes(x = total, y = batted , size = total_passes))  +
+  geom_point() + 
+  geom_text(aes(label = passer_player_name), 
+            size = 3, 
+            check_overlap = TRUE, 
+            position = position_dodge(width = 1), 
+            vjust = -1.5) + 
+  labs(
+    x = "Deep Right Passes Thrown", 
+    y = "Percentage of Deep Right Batted", 
+    title = "Deep Right Passes Thrown by QB in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season"
+  )
+
+
+#deep left
+qb_passes_2023 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |> 
+  filter(pass_LL == "deep left") |> 
+  summarize(total = n(), 
+            batted = sum(is_batted == "1")/total, 
+            total_passes = mean(total_passes)) |> 
+  ggplot(aes(x = total, y = batted , size = total_passes))  +
+  geom_point() + 
+  geom_text(aes(label = passer_player_name), 
+            size = 3, 
+            check_overlap = TRUE, 
+            position = position_dodge(width = 1), 
+            vjust = -1.5) + 
+  labs(
+    x = "Deep Left Passes Thrown", 
+    y = "Percentage of Deep Left Batted", 
+    title = "Deep Left Passes Thrown by QB in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season"
+  )
+
 ```
+```{r looking at air yards}
+
+#Fractional deep right of total and etc, relationship of these amounts with batted passes, size = total pass attempt, each qb is a dot, x = deep left, y = batted percentage (similar thing for air yards)
+
+
+#pass type by quarterback in 2023 season
+qb_passes_2023_2 <- qb_tend |> 
+  filter(season == 2023) |>
+  select(passer_player_name, season, pass_LL, is_batted, air_yards) |> 
+  group_by(passer_player_name) |> 
+  filter(n()>100) 
+  
+#short middle  
+qb_passes_2023_2 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |>   
+  filter(pass_LL == "short middle") |> 
+  mutate(total = n(), 
+         batted = sum(is_batted == "1")/total, 
+         total_passes = mean(total_passes)) |>
+  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted), alpha = 0.1))  +
+  geom_point() + 
+  labs(
+    x = "Air Yards of each Pass", 
+    y = "Percentage of Short Middle Batted", 
+    title = "Air Yards of Short Middle Passes in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season", 
+    color = "Batted"
+  )
+
+#short left  
+qb_passes_2023_2 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |>   
+  filter(pass_LL == "short left") |> 
+  mutate(total = n(), 
+         batted = sum(is_batted == "1")/total, 
+         total_passes = mean(total_passes)) |>
+  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted), alpha = 0.1))  +
+  geom_point() + 
+  labs(
+    x = "Air Yards of each Pass", 
+    y = "Percentage of Short Left Batted", 
+    title = "Air Yards of Short Left Passes in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season", 
+    color = "Batted"
+  )
+
+#short right
+qb_passes_2023_2 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |>   
+  filter(pass_LL == "short right") |> 
+  mutate(total = n(), 
+         batted = sum(is_batted == "1")/total, 
+         total_passes = mean(total_passes)) |>
+  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted), alpha = 0.1))  +
+  geom_point() + 
+  labs(
+    x = "Air Yards of each Pass", 
+    y = "Percentage of Short Right Batted", 
+    title = "Air Yards of Short Right Passes in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season", 
+    color = "Batted"
+  )
+
+#deep middle  
+qb_passes_2023_2 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |>   
+  filter(pass_LL == "deep middle") |> 
+  mutate(total = n(), 
+         batted = sum(is_batted == "1")/total, 
+         total_passes = mean(total_passes)) |>
+  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted), alpha = 0.1))  +
+  geom_point() + 
+  labs(
+    x = "Air Yards of each Pass", 
+    y = "Percentage of Deep Middle Batted", 
+    title = "Air Yards of Deep Middle Passes in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season", 
+    color = "Batted"
+  )
+
+#deep right 
+qb_passes_2023_2 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |>   
+  filter(pass_LL == "deep right") |> 
+  mutate(total = n(), 
+         batted = sum(is_batted == "1")/total, 
+         total_passes = mean(total_passes)) |>
+  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted), alpha = 0.1))  +
+  geom_point() + 
+  labs(
+    x = "Air Yards of each Pass", 
+    y = "Percentage of Deep Right Batted", 
+    title = "Air Yards of Deep Right Passes in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season", 
+    color = "Batted"
+  )
+
+#deep left  
+qb_passes_2023_2 |> 
+  group_by(passer_player_name) |> 
+  mutate(total_passes = n()) |>   
+  filter(pass_LL == "deep left") |> 
+  mutate(total = n(), 
+         batted = sum(is_batted == "1")/total, 
+         total_passes = mean(total_passes)) |>
+  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted), alpha = 0.1))  +
+  geom_point() + 
+  labs(
+    x = "Air Yards of each Pass", 
+    y = "Percentage of Deep Left Batted", 
+    title = "Air Yards of Deep Left Passes in 2023 season versus Percentage Batted", 
+    size = "Total Passes in 2023 Season", 
+    color = "Batted"
+  )
+```
+
+
+
 
 
 
