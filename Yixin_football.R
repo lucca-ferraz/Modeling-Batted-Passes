@@ -30,18 +30,55 @@ summary(pbp_data)
 
 colnames(pbp_data)
 
+pbp_data$is_batted
+
 # 2. 2019-2023 Batted Passes Dataset
 # install.packages("readxl")
 library(readxl)
 getwd()
 excel_file_path <- "/Users/amelia/Desktop/Sports Project Yixin/2019-2023 Batted Passes.xlsx"
 pass_data <- read_excel(excel_file_path)
-
+pass_data$player
 str(pass_data)
 head(pass_data)
 summary(pass_data)
 
 colnames(pass_data)
+
+pass_data$is_batted <- 1
+
+all_plays2023 <- nflreadr::load_pbp()
+library(tidyverse)
+excel_simple <- pass_data |> 
+  mutate(across(c("HOME", "AWAY"), ~ str_replace(
+    string = .x, pattern = "LAR", replacement = "LA"))) |> 
+  select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
+
+# 2023
+all_plays2023 <- left_join(all_plays2023, excel_simple)
+
+library(tidyr)
+library(dplyr)
+all_plays2023$is_batted <- all_plays2023$is_batted |> 
+  replace_na(0)
+pass_plays2023 <- all_plays2023 |> 
+  filter(play_type == "pass")
+sum(pass_plays2023$is_batted)
+
+pass_plays2023$is_batted
+
+pass_plays2023 <- all_plays2023 |> 
+  filter(play_type == "pass")
+sum(pass_plays2023$is_batted)
+
+# 2019 - 2023
+pbp_data <- pbp_data |> filter(play_type == "pass")
+pbp_data <- left_join(pbp_data, excel_simple)
+pbp_data$is_batted <- pbp_data$is_batted |> 
+  replace_na(0)
+sum(pbp_data$is_batted)
+
+print(unique(pbp_data$home_team))
 
 # 3. integrate
 library(dplyr)
@@ -292,6 +329,8 @@ print(season_passes_summary_2024)
 # REG                               15
  
 # percentage
+
+# Teams
 # Each team each year, percentage of batted passes, line, offensive/defensive
 
 total_passes <- batted_passes_data_include_complete %>%
@@ -319,8 +358,63 @@ ggplot(batted_passes_summary, aes(x = as.factor(season), y = percentage_batted_p
   theme_minimal() +
   theme(legend.position = "none") 
 
+# Players
+# Percentage of Batted Passes by QB Players Across Seasons
 
+# 1. Cleaning players data
+players_data |>
+  filter(status == "ACT") # != RET
 
+qb_names <- players_data |>
+  filter(position == "QB") |>
+  select(gsis_id, display_name)
+
+# 2. Join dataset
+# join with batted_passes_data_include_complete to get total passes count
+total_passes_data_qb_names <- batted_passes_data_include_complete |>
+  left_join(qb_names, by = c("passer_player_id" = "gsis_id")) |>
+  rename(qb_name = display_name)  
+
+# join with batted_passes_data to get batted passes count
+batted_passes_data_qb_names <- batted_passes_data |>
+  left_join(qb_names, by = c("passer_player_id" = "gsis_id")) |>
+  rename(qb_name = display_name)  
+
+# 3. count
+total_passes_qb <- total_passes_data_qb_names |>
+  group_by(season, qb_name) |>
+  summarise(total_count_qb = n(), .groups = 'drop')
+total_passes_qb
+
+batted_passes_qb <- batted_passes_data_qb_names |>
+  group_by(season, qb_name) |>
+  summarise(batted_count_qb = n(), .groups = 'drop')
+batted_passes_qb
+
+batted_passes_summary_qb <- merge(batted_passes_qb, total_passes_qb,
+                                  by = c("season", "qb_name"))
+batted_passes_summary_qb
+
+# 4. calculate the percentage
+batted_passes_summary_qb <- batted_passes_summary_qb |>
+  mutate(percentage_batted_passes_qb = (batted_count_qb / total_count_qb) * 100)
+
+batted_passes_summary_qb
+
+# 5. plot
+ggplot(batted_passes_summary_qb, aes(x = as.factor(season), 
+                                     y = percentage_batted_passes_qb, 
+                                     group = qb_name)) +
+  geom_line(aes(color = qb_name), size = 1) +
+  geom_point(aes(color = qb_name), size = 2) +
+  facet_wrap(~qb_name, ncol = 10) +
+  labs(
+    title = "Percentage of Batted Passes by QB Players Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") 
 
 
 
