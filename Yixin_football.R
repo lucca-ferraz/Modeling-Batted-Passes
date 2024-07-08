@@ -297,6 +297,7 @@ print(season_passes_summary_2024)
 total_passes <- batted_passes_data_include_complete %>%
   group_by(season, posteam) %>%
   summarise(total_passes_count = n(), .groups = 'drop')
+total_passes
 
 batted_passes_summary <- merge(batted_passes_summary, total_passes, by = c("season", "posteam"))
 
@@ -304,11 +305,12 @@ batted_passes_summary <- merge(batted_passes_summary, total_passes, by = c("seas
 batted_passes_summary <- batted_passes_summary %>%
   mutate(percentage_batted_passes = (batted_passes_count / total_passes_count) * 100)
 
+batted_passes_summary
 
 ggplot(batted_passes_summary, aes(x = as.factor(season), y = percentage_batted_passes, group = posteam)) +
   geom_line(aes(color = posteam), size = 1) +
   geom_point(aes(color = posteam), size = 2) +
-  facet_wrap(~posteam) +
+  facet_wrap(~posteam, ncol = 4) +
   labs(
     title = "Percentage of Batted Passes by Team Across Seasons",
     x = "Season",
