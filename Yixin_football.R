@@ -383,11 +383,14 @@ qb_names <- players_data |>
 
 # 2. Join dataset
 # join with batted_passes_data_include_complete to get total passes count
-total_passes_data_qb_names <- batted_passes_data_include_complete |>
+total_passes_data_qb_names <- pbp_data |>
   left_join(qb_names, by = c("passer_player_id" = "gsis_id")) |>
   rename(qb_name = display_name)  
 
 # join with batted_passes_data to get batted passes count
+batted_passes_data <- pbp_data |>
+  filter(is_batted == 1)
+
 batted_passes_data_qb_names <- batted_passes_data |>
   left_join(qb_names, by = c("passer_player_id" = "gsis_id")) |>
   rename(qb_name = display_name)  
