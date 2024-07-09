@@ -529,14 +529,135 @@ qb_passes_2023_2 |>
 ```
 
 
+```{r model attempt 1}
+library(broom)
+small_batted <- pass_by_qb |>  select(height, air_yards, pass_length, pass_location, is_batted)
+batted_logit <- glm(is_batted ~ height + air_yards + pass_length + pass_location, 
+                    data = pass_by_qb, 
+                    family = binomial)
+
+tidy(batted_logit, exponentiate = TRUE)
+
+batted_logit |> 
+  augment()
+
+# not working - is using passer player name for some reason
+# pass_by_qb |> 
+#   mutate(pred_prob = fitted(batted_logit),
+#          i_type = as.numeric(type == "Yes")) |> 
+#   ggplot(aes(bp)) +
+#   geom_line(aes(y = pred_prob, color = is_batted, linewidth = 2)) +
+#   geom_point(aes(y = i_type), alpha = 0.3, color = "darkorange", size = 4)
+
+
+# install.packages("ggeffects")
+library(ggeffects)
+batted_logit |> 
+  ggeffect(terms = c("height", "air_yards")) |>
+  plot()
+
+batted_logit |> 
+  ggeffect(terms = c("height", "air_yards", "pass_length", "pass_location")) |>
+  plot()
+
+batted_logit |> 
+  ggeffect(terms = c("pass_length", "pass_location")) |>
+  plot()
+
+vip(batted_logit)
+
+#attmept to check accuacy 
+set.seed(123)
+train <- small_batted |> 
+  slice_sample(prop = 0.5) 
+test <- small_batted |> 
+  anti_join(train) 
+x_train <- train |> 
+  select(-is_batted) |> 
+  as.matrix()
+x_test <- test |> 
+  select(-is_batted) |> 
+  as.matrix()
+
+train |> 
+  mutate(pred = round(predict(batted_logit, newdata = x_train))) |> 
+  summarize(correct = mean(is_batted == pred))
+
+test |> 
+  mutate(pred = round(predict(batted_logit, newdata = x_test))) |> 
+  summarize(correct = mean(is_batted == pred))
+```
 
 
 
 
 
+```{r variable selection}
 
+library(ggcorrplot)
 
+batted_selection <- pass_by_qb |> 
+  select( height, air_yards, pass_location, pass_length, is_batted) |> 
+  drop_na()
 
+set.seed(100)
+k <- 10
+batted_selection <- batted_selection |>
+  mutate(test_fold = sample(rep(1:k, length.out = n())))
+  
+get_cv_pred <- function(model_formula, data = batted_selection) {
+  # generate holdout predictions for every row
+  get_test_pred <- function(fold) {
+  
+    # separate test and training data
+  
+    test_data <- data |> filter(test_fold == fold)
+    train_data <- data |> filter(test_fold != fold)
+    train_fit <- lm(as.formula(model_formula), data = train_data)
+  
+    # return test results
+    test_res <- tibble(test_pred = predict(train_fit, newdata = test_data),
+                       test_actual = test_data$is_batted,
+                       test_fold = fold)
+    return(test_res)
+  }
+  
+  test_pred <- map(1:k, get_test_pred) |> 
+    bind_rows()
+  
+  return(test_pred)
+}
 
+all_pred <- get_cv_pred("is_batted ~ height + air_yards + pass_length + pass_location")
+height_only_pred <- get_cv_pred("is_batted ~ height")
+air_yards_only_pred <- get_cv_pred("is_batted ~ air_yards")
+location_only_pred <- get_cv_pred("is_batted ~ pass_location")
+length_only_pred <- get_cv_pred("is_batted ~ pass_length ")
+  
+
+#WHAT IS TEST ACTUAL
+bind_rows(
+  mutate(all_pred, mod = "All"),
+  mutate(height_only_pred, mod = "Height only"),
+  mutate(air_yards_only_pred, mod = "Air Yards only"),
+  mutate(location_only_pred, mod = "Pass Location only"),
+  mutate(length_only_pred, mod = "Pass Length only")
+) |>
+  group_by(mod) |>
+  summarize(
+    rmse = sqrt(mean((test_res$test_actual - test_res$test_pred)^2))
+  ) |>
+  mutate(mod = fct_reorder(mod, rmse)) |>
+  ggplot(aes(x = rmse, y = mod)) +
+  geom_point()
+
+batted_logit |> 
+  tidy(conf.int = TRUE) |> 
+  filter(term != "(Intercept)") |> 
+  ggplot(aes(x = estimate, y = term))  +
+  geom_point(size = 4) +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high, width = 0.2)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red")
+```
 
 
