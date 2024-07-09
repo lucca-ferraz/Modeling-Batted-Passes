@@ -67,8 +67,6 @@ sum(pass_plays2023$is_batted)
 
 pass_plays2023$is_batted
 
-pass_plays2023 <- all_plays2023 |> 
-  filter(play_type == "pass")
 sum(pass_plays2023$is_batted)
 
 # 2019 - 2023
@@ -175,6 +173,10 @@ defender_height <- defender_data |>
 head(defender_height)
 
 # join data
+pbp_data_qb_height <- pbp_data |>
+  filter(is_batted == 1) |>
+  left_join(qb_height, by = c("passer_player_id" = "gsis_id")) %>%
+  rename(qb_height = height)  
 
 batted_passes_data <- batted_passes_data %>%
   left_join(qb_height, by = c("passer_player_id" = "gsis_id")) %>%
@@ -194,6 +196,10 @@ batted_passes_data <- batted_passes_data %>%
 batted_passes_data$defender_height2
 
 library(ggplot2)
+ggplot(pbp_data_qb_height, aes(x = qb_height)) +
+  geom_histogram(fill = "midnightblue") +
+  labs(title = "Batted Passes by QB Height", x = "Height", y = "Count")
+
 ggplot(batted_passes_data, aes(x = qb_height)) +
   geom_histogram(fill = "midnightblue") +
   labs(title = "Batted Passes by QB Height", x = "Height", y = "Count")
@@ -332,9 +338,15 @@ print(season_passes_summary_2024)
 
 # Teams
 # Each team each year, percentage of batted passes, line, offensive/defensive
+print(unique(pbp_data$is_batted))
 
-total_passes <- batted_passes_data_include_complete %>%
-  group_by(season, posteam) %>%
+batted_passes_summary <- pbp_data |>
+  filter(is_batted == 1) |>
+  group_by(season, posteam) |>
+  summarise(batted_passes_count = n(), .groups = 'drop')
+
+total_passes <- pbp_data |>
+  group_by(season, posteam) |>
   summarise(total_passes_count = n(), .groups = 'drop')
 total_passes
 
