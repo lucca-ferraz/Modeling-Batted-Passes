@@ -525,7 +525,7 @@ batted_passes_summary_df
 
 # 4. calculate the percentage
 batted_passes_summary_df <- batted_passes_summary_df |>
-  mutate(percentage_batted_passes_qb = (batted_count_df / total_count_defenders) * 100)
+  mutate(percentage_batted_passes_df = (batted_count_df / total_count_defenders) * 100)
 
 batted_passes_summary_df
 
@@ -534,9 +534,9 @@ combined_summary <- bind_rows(batted_passes_summary_df, batted_passes_summary_qb
 colnames(combined_summary)
 library(ggplot2)
 ggplot(batted_passes_summary_df, aes(x = as.factor(season), 
-                                     y = percentage_batted_passes_df, 
+                                     y = percentage_batted_passes_qb, 
                                      group = defender_name)) +
-  geom_bar(stat = "identity", aes(fill = defenders), position = "dodge", alpha = 0.7) +  
+  geom_bar(stat = "identity", aes(fill = defender_name), position = "dodge", alpha = 0.7) +  
   
   geom_line(aes(color = defender_name), size = 1) +
   geom_point(aes(color = defender_name), size = 2) +
