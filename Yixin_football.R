@@ -420,6 +420,8 @@ batted_passes_summary_qb
 ggplot(batted_passes_summary_qb, aes(x = as.factor(season), 
                                      y = percentage_batted_passes_qb, 
                                      group = qb_name)) +
+  geom_bar(stat = "identity", aes(fill = qb_name), position = "dodge", alpha = 0.7) +  # 绘制柱状图
+  
   geom_line(aes(color = qb_name), size = 1) +
   geom_point(aes(color = qb_name), size = 2) +
   facet_wrap(~qb_name, ncol = 10) +
@@ -431,6 +433,126 @@ ggplot(batted_passes_summary_qb, aes(x = as.factor(season),
   theme_minimal() +
   theme(legend.position = "none") 
 
+### Defensive
+library(dplyr)
+library(ggplot2)
+
+defender_positions <- c("CB", "DT", "DE", "LB", "MLB", "OLB", "ILB", "FS", "SS", "SAF", "DB", "S", "NT", "DL")
+colnames(pbp_data)
+# integrate
+colnames(players_data)
+players_data |>
+  filter(status == "ACT") # != RET
+
+players_data |>
+  filter(status == "ACT") # != RET
+
+defenders <- players_data |>
+  filter(position %in% defender_positions) |>
+  select(gsis_id, display_name, position)
+
+print(unique(defenders$display_name))
+
+total_passes_data_df_names <- pbp_data |>
+  left_join(defenders, by = c("passer_player_id" = "gsis_id")) |>
+  rename(defender_name = display_name)  
+total_passes_data_df_names
+head(pbp_data$passer_player_id)
+head(players_data$gsis_id)
+print(unique(total_passes_data_df_names$defender_name))
+
+common_ids <- intersect(players_data$gsis_id, pbp_data$passer_player_id)
+num_common_ids <- length(common_ids)
+num_common_ids
+
+# join with batted_passes_data to get batted passes count
+batted_passes_data <- pbp_data |>
+  filter(is_batted == 1)
+
+batted_passes_data_df_names <- batted_passes_data |>
+  left_join(defenders, by = c("passer_player_id" = "gsis_id")) |>
+  rename(defender_name = display_name)  
+print(unique(batted_passes_data_df_names$defender_name))
+
+# 3. count
+
+total_passes_df <- total_passes_data_df_names |>
+  group_by(season, defender_name) |>
+  summarise(total_count_df = n(), .groups = 'drop')
+total_passes_df
+
+colnames(total_passes_data_df_names)
+colnames(batted_passes_data_df_names)
+batted_passes_df <- batted_passes_data_df_names |>
+  group_by(season, defender_name) |>
+  summarise(batted_count_df = n(), .groups = 'drop')
+batted_passes_df
+print(unique(batted_passes_df$defender_name))
+colnames(batted_passes_df)
+colnames(total_passes_df)
+batted_passes_summary_df <- merge(batted_passes_df, total_passes_df,
+                                  by = c("season", "defender_name"))
+batted_passes_summary_df
+print(unique(batted_passes_summary_df$defender_name))
+
+# 4. calculate the percentage
+batted_passes_summary_df <- batted_passes_summary_df |>
+  mutate(percentage_batted_passes_qb = (batted_count_df / total_count_df) * 100)
+
+batted_passes_summary_df
+print(unique(batted_passes_summary_df$defender_name))
+##
+total_passes_defenders <- pbp_data |>
+  group_by(season, defenders) |>
+  left_join(defenders, by = c("passer_player_id" = "gsis_id")) |>
+  rename(defender_name = display_name)  |>
+  summarise(total_count_defenders = n(), .groups = 'drop')
+total_passes_defenders
+
+batted_passes_data_defenders_names <- pbp_data |>
+  filter(is_batted == 1) |>
+  left_join(defenders, by = c("passer_player_id" = "gsis_id")) |>
+  rename(defender_name = display_name)  
+
+batted_passes_df <- batted_passes_data_defenders_names |>
+  group_by(season, defender_name) |>
+  summarise(batted_count_df = n(), .groups = 'drop')
+batted_passes_df
+
+batted_passes_summary_df <- merge(batted_passes_df, total_passes_defenders,
+                                         by = c("season", "defender_name"))
+batted_passes_summary_df
+
+# 4. calculate the percentage
+batted_passes_summary_df <- batted_passes_summary_df |>
+  mutate(percentage_batted_passes_qb = (batted_count_df / total_count_defenders) * 100)
+
+batted_passes_summary_df
+
+
+combined_summary <- bind_rows(batted_passes_summary_df, batted_passes_summary_qb)
+colnames(combined_summary)
+library(ggplot2)
+ggplot(batted_passes_summary_df, aes(x = as.factor(season), 
+                                     y = percentage_batted_passes_df, 
+                                     group = defender_name)) +
+  geom_bar(stat = "identity", aes(fill = defenders), position = "dodge", alpha = 0.7) +  
+  
+  geom_line(aes(color = defender_name), size = 1) +
+  geom_point(aes(color = defender_name), size = 2) +
+  facet_wrap(~defender_name, ncol = 10) +
+  labs(
+    title = "Percentage of Batted Passes by Defensive Players Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+
+
+#################################################################################
+# Model
+colnames(pbp_data)
 
 
 
