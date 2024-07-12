@@ -339,7 +339,7 @@ print(season_passes_summary_2024)
 # Teams
 # Each team each year, percentage of batted passes, line, offensive/defensive
 print(unique(pbp_data$is_batted))
-
+colnames(pbp_data)
 batted_passes_summary <- pbp_data |>
   filter(is_batted == 1) |>
   group_by(season, posteam) |>
@@ -551,6 +551,26 @@ ggplot(batted_passes_summary_df, aes(x = as.factor(season),
 
 
 #################################################################################
+# Elo ratings
+
+# Need to have the tidyverse installed prior to starting!
+library(tidyverse)
+
+# Only include games during the 2023-24 season
+pbp_games_2023 <- all_plays2023
+
+pbp_games_2023
+getwd()
+
+# The week column just increases in the correct order, which will be convenient 
+# for implementing Elo ratings over the course of the NFL season.
+
+# Calculating and Updating Ratings
+
+
+
+#################################################################################
+
 # Model
 colnames(pbp_data)
 
