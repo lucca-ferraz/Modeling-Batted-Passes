@@ -387,6 +387,8 @@ total_passes_data_qb_names <- pbp_data |>
   left_join(qb_names, by = c("passer_player_id" = "gsis_id")) |>
   rename(qb_name = display_name)  
 
+print(unique(total_passes_data_qb_names$season))
+
 # join with batted_passes_data to get batted passes count
 batted_passes_data <- pbp_data |>
   filter(is_batted == 1)
@@ -432,6 +434,45 @@ ggplot(batted_passes_summary_qb, aes(x = as.factor(season),
   ) +
   theme_minimal() +
   theme(legend.position = "none") 
+
+###########################################################################
+# calculate the percentage of batted passes of each QB player
+
+overall_batted_passes <- batted_passes_summary_qb %>%
+  group_by(qb_name) %>%
+  summarise(average_percentage_batted = mean(percentage_batted_passes_qb), .groups = 'drop')
+
+# top 10
+top_qbs <- overall_batted_passes %>%
+  top_n(10, average_percentage_batted) %>%
+  pull(qb_name)
+
+top_qbs
+
+# [1] "Anthony Richardson" "Blaine Gabbert"     "Brett Rypien"      
+# [4] "Clayton Tune"       "Drew Lock"          "Gardner Minshew"   
+# [7] "Jeff Driskel"       "Marcus Mariota"     "Taysom Hill"       
+# [10] "Trevor Siemian"
+
+# filter
+top_qb_data <- batted_passes_summary_qb %>%
+  filter(qb_name %in% top_qbs)
+
+print(unique(top_qb_data$season))
+ggplot(top_qb_data, aes(x = as.factor(season), y = percentage_batted_passes_qb, group = qb_name, color = qb_name)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Percentage of Batted Passes by Top 10 QB Players Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = rainbow(10))  
+
+###########################################################################
+
 
 ### Defensive
 library(dplyr)
@@ -549,6 +590,8 @@ ggplot(batted_passes_summary_df, aes(x = as.factor(season),
   theme_minimal() +
   theme(legend.position = "none") 
 
+
+#################################################################################
 
 #################################################################################
 # Elo ratings
