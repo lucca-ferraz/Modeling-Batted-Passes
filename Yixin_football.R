@@ -473,12 +473,91 @@ ggplot(top_qb_data, aes(x = as.factor(season), y = percentage_batted_passes_qb, 
   scale_color_manual(values = rainbow(10))  
 
 ###########################################################################
+# Relationship Between Top QBs' and Their Teams' Percentage of Batted Passes
+colnames(batted_passes_summary_qb)
+colnames(top_qb_data)
+pbp_data_with_names <- pbp_data %>%
+  left_join(qb_names, by = c("passer_player_id" = "gsis_id"))
+colnames(pbp_data_with_names)
+# Extract necessary QB data with team information
+qb_batted_passes_summary <- pbp_data_with_names %>%
+  select(season, qb_name = display_name, posteam, is_batted) %>%
+  group_by(season, qb_name, posteam) %>%
+  summarise(batted_passes_qb = sum(is_batted == 1),
+            total_passes_qb = n(), .groups = 'drop') %>%
+  mutate(percentage_batted_passes_qb = (batted_passes_qb / total_passes_qb) * 100)
+
+# Assuming pbp_data contains the necessary fields
+team_batted_passes_summary <- pbp_data %>%
+  group_by(season, posteam) %>%
+  summarise(total_passes_team = n(),
+            batted_passes_team = sum(is_batted == 1), .groups = 'drop') %>%
+  mutate(percentage_batted_passes_team = (batted_passes_team / total_passes_team) * 100)
+
+# Join the enhanced QB data with the team data
+# Correct Join to Include QB Data
+combined_data <- qb_batted_passes_summary %>%
+  left_join(team_batted_passes_summary, by = c("season", "posteam"))
+
+# Check the columns in the combined dataset
+print(colnames(combined_data))
+
+colnames(pbp_data)
+colnames(players_data)
+# Check columns in QB data just before the join
+print(colnames(qb_batted_passes_summary))
+
+
+# Identify top 10 QBs based on their average batted passes percentage
+top_qbs <- qb_batted_passes_summary %>%
+  group_by(qb_name) %>%
+  summarise(average_percentage_batted = mean(percentage_batted_passes_qb), .groups = 'drop') %>%
+  top_n(10, average_percentage_batted) %>%
+  pull(qb_name)
+top_qbs
+# Filter the combined data for these top QBs
+# Filter the combined data for these top QBs
+top_qb_team_data <- combined_data %>%
+  filter(qb_name %in% top_qbs)
+
+# Check results
+print(head(top_qb_team_data))
+
+# Calculate average percentages for further insights
+average_stats <- top_qb_team_data %>%
+  group_by(qb_name) %>%
+  summarise(
+    avg_percentage_qb = mean(percentage_batted_passes_qb, na.rm = TRUE),
+    avg_percentage_team = mean(percentage_batted_passes_team, na.rm = TRUE)
+  )
+print(average_stats)
+library(ggplot2)
+
+# Plotting to visualize the relationship
+ggplot(top_qb_team_data, aes(x = percentage_batted_passes_qb, y = percentage_batted_passes_team, color = qb_name)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Linear regression line
+  labs(
+    title = "Relationship Between Top QBs' and Their Teams' Percentage of Batted Passes",
+    x = "QB's Percentage of Batted Passes",
+    y = "Team's Percentage of Batted Passes"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")  # Use a nice color palette
+
+
+
+###########################################################################
 library(dplyr)
 # 10 QB Players with Least Percentage of Batted Passes  Across Seasons
 last_qbs <- overall_batted_passes %>%
   slice_min(order_by = average_percentage_batted, n = 10) %>%
   pull(qb_name)
 
+last_qbs_all <- overall_batted_passes %>%
+  slice_min(order_by = average_percentage_batted, n = 40) %>%
+  pull(qb_name, average_percentage_batted)
+last_qbs_all
 last_qbs
 # [1] NA             "Kirk Cousins" "Joe Flacco"   "Joshua Dobbs" "Jordan Love"  "Tyrod Taylor"
 # [7] "Bryce Young"  "Derek Carr"   "Daniel Jones" "Easton Stick"
