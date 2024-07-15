@@ -436,6 +436,7 @@ ggplot(batted_passes_summary_qb, aes(x = as.factor(season),
   theme(legend.position = "none") 
 
 ###########################################################################
+# Percentage of Batted Passes by Top 10 QB Players Across Seasons
 # calculate the percentage of batted passes of each QB player
 
 overall_batted_passes <- batted_passes_summary_qb %>%
@@ -472,7 +473,34 @@ ggplot(top_qb_data, aes(x = as.factor(season), y = percentage_batted_passes_qb, 
   scale_color_manual(values = rainbow(10))  
 
 ###########################################################################
+library(dplyr)
+# 10 QB Players with Least Percentage of Batted Passes  Across Seasons
+last_qbs <- overall_batted_passes %>%
+  slice_min(order_by = average_percentage_batted, n = 10) %>%
+  pull(qb_name)
 
+last_qbs
+# [1] NA             "Kirk Cousins" "Joe Flacco"   "Joshua Dobbs" "Jordan Love"  "Tyrod Taylor"
+# [7] "Bryce Young"  "Derek Carr"   "Daniel Jones" "Easton Stick"
+
+# filter
+last_qb_data <- batted_passes_summary_qb %>%
+  filter(qb_name %in% last_qbs)
+
+print(unique(last_qb_data$season))
+ggplot(last_qb_data, aes(x = as.factor(season), y = percentage_batted_passes_qb, group = qb_name, color = qb_name)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Percentage of Batted Passes by Last 10 QB Players Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = rainbow(10))  
+
+###########################################################################
 
 ### Defensive
 library(dplyr)
