@@ -545,7 +545,43 @@ ggplot(top_qb_team_data, aes(x = percentage_batted_passes_qb, y = percentage_bat
   theme_minimal() +
   scale_color_brewer(palette = "Set1")  # Use a nice color palette
 
+###########################################################################
+# Relationship Between Last QBs' and Their Teams' Percentage of Batted Passes
+last_qbs <- qb_batted_passes_summary %>%
+  group_by(qb_name) %>%
+  summarise(average_percentage_batted = mean(percentage_batted_passes_qb), .groups = 'drop') %>%
+  slice_min(order_by = average_percentage_batted, n = 10) %>%
+  pull(qb_name)
+last_qbs
+# Filter the combined data for these top QBs
+# Filter the combined data for these top QBs
+last_qb_team_data <- combined_data %>%
+  filter(qb_name %in% last_qbs)
 
+# Check results
+print(head(last_qb_team_data))
+
+# Calculate average percentages for further insights
+average_stats <- last_qb_team_data %>%
+  group_by(qb_name) %>%
+  summarise(
+    avg_percentage_qb = mean(percentage_batted_passes_qb, na.rm = TRUE),
+    avg_percentage_team = mean(percentage_batted_passes_team, na.rm = TRUE)
+  )
+print(average_stats)
+library(ggplot2)
+
+# Plotting to visualize the relationship
+ggplot(last_qb_team_data, aes(x = percentage_batted_passes_qb, y = percentage_batted_passes_team, color = qb_name)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Linear regression line
+  labs(
+    title = "Relationship Between Last QBs' and Their Teams' Percentage of Batted Passes",
+    x = "QB's Percentage of Batted Passes",
+    y = "Team's Percentage of Batted Passes"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") 
 
 ###########################################################################
 library(dplyr)
