@@ -891,16 +891,80 @@ allpassinfo_qb_glmm22 <- glmer(is_batted ~ pass_length + pass_location + (1 | pa
 #very similar variances and estimates to above
 summary(allpassinfo_def_glmm22)
 # def variance: 0.1866   
-# estimates: intercept            -5.5577     
-#            pass_lengthshort      1.6140     
-#            pass_locationmiddle   0.5994     
-#            pass_locationright    0.1310
+
 summary(allpassinfo_qb_glmm22)
 # qb variance: 0.02775     
-# estimates: intercept            -5.4585     
-#            pass_lengthshort      1.6027          
-#            pass_locationmiddle   0.5995     
-#            pass_locationright    0.1234     
+
+allpassinfo_qb_glmm22 |>  tidy()
+allpassinfo_def_glmm22 |>  tidy()
+
+allpassinfo_qb_glmm |>  tidy()
+allpassinfo_def_glmm |>  tidy()
+```
+
+```{r model coefficient plot}
+#ydstogo and down have coefficients of basically 0
+
+# DEFENSIVE ROUTE
+#fit and summary
+all_fit <- glmer(is_batted ~ pass_location + pass_length + shotgun+ score_differential + (1 | defteam),
+                     family = binomial,
+                     data = pass_by_qb_2023)
+
+# summary(all_fit)
+# install.packages("broom.mixed")
+library(broom.mixed)
+
+#coefficient plot
+all_fit |> 
+  tidy(conf.int = TRUE) |> 
+  filter(term != "(Intercept)") |> 
+  ggplot(aes(x = estimate, y = term))  +
+  geom_point(size = 4) +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high, width = 0.2)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") + 
+  labs(
+    title = "Def Team random effect model coefficient plot"
+  )
+
+#interpretation
+all_fit |> tidy(conf.int = TRUE)
+
+
+# QB ROUTE
+#fit and summary
+all_fit_qb <- glmer(is_batted ~ pass_location + pass_length + shotgun+ score_differential +  (1 | passer_player_name),
+                     family = binomial,
+                     data = pass_by_qb_2023)
+
+#coefficient plot
+all_fit_qb |> 
+  tidy(conf.int = TRUE) |> 
+  filter(term != "(Intercept)") |> 
+  ggplot(aes(x = estimate, y = term))  +
+  geom_point(size = 4) +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high, width = 0.2)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") + 
+  labs(
+    title = "QB random effect model coefficient plot"
+  )
+
+#interpretation
+all_fit_qb |> tidy(conf.int = TRUE)
+```
+
+
+```{r yards togo}
+excel_batted |> 
+  group_by(togo) |> 
+  ggplot(aes(x = togo)) + 
+  geom_bar()
+
+excel_batted |> 
+  group_by(down) |> 
+  ggplot(aes( x = down)) + 
+  geom_bar()
+
 ```
 
 
