@@ -771,6 +771,29 @@ sum(merged_ftn$is_batted)
 print(unique(merged_ftn$qb_location))
 # [1] "S" "U" "P" NA  "0"
 
+# ftn join with playsers data to get qb_height
+players_data <- nflreadr::load_players()
+colnames(players_data)
+
+# get height
+head(players_data$gsis_id) # Game Statistics and Information System
+head(batted_passes_data$passer_player_id)
+
+unique(players_data$position)
+
+players_data |>
+  filter(status == "ACT") # != RET
+
+qb_height <- players_data |>
+  filter(position == "QB") |>
+  select(gsis_id, height)
+
+# join data
+merged_ftn <- merged_ftn |>
+  filter(is_batted == 1) |>
+  left_join(qb_height, by = c("passer_player_id" = "gsis_id")) |>
+  rename(qb_height = height) 
+
 colnames(pbp_data)
 
 install.packages("lme4")
@@ -778,14 +801,29 @@ library(lme4)
 library(dplyr)
 print(unique(merged_ftn$season))
 merged_ftn2023 <- merged_ftn |> 
-  select(season = 2023) |>
+  filter(season == 2023) |>
   mutate(passer_name_id = paste(passer_player_name, passer_player_id))
 
 colnames(merged_ftn2023)
 
-pass_plays2023$qb_location
 merged_ftn2023$qb_location
+str(merged_ftn2023$qb_height)
+install.packages("Matrix")
+update.packages(ask = FALSE)
 
+remove.packages("lme4")
+remove.packages("Matrix")
+install.packages("Matrix", type = "source")
+
+install.packages("lme4", type="source")
+library(lme4)
+# Reinstall lme4 and Matrix specifically
+install.packages("Matrix", dependencies = TRUE)
+install.packages("lme4", dependencies = TRUE)
+remove.packages("Matrix")
+install.packages("Matrix")
+install.packages("lme4")
+library(Matrix)
 full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
                           qb_height +
                           pass_location + qb_location + n_offense_backfield + 
@@ -793,6 +831,8 @@ full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
                           n_pass_rushers,
                         family = binomial, data = merged_ftn2023)
 
+install.packages("installr")
+updateR()
 
 
 
