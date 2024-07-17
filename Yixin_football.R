@@ -736,30 +736,25 @@ ggplot(batted_passes_summary_df, aes(x = as.factor(season),
 
 #################################################################################
 
-#################################################################################
-# Elo ratings
-
-# Need to have the tidyverse installed prior to starting!
-library(tidyverse)
-
-# Only include games during the 2023-24 season
-pbp_games_2023 <- all_plays2023
-
-pbp_games_2023
-getwd()
-
-# The week column just increases in the correct order, which will be convenient 
-# for implementing Elo ratings over the course of the NFL season.
-
-# Calculating and Updating Ratings
-
-
 
 #################################################################################
 
 # Model
 colnames(pbp_data)
 
+install.packages("lme4")
+library(lme4)
+library(dplyr)
+merged_ftn2023 <- pbp_data_2023 |> 
+  mutate(passer_info = paste(passer_player_name, passer_player_id))
+colnames(merged_ftn2023)
+
+full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
+                          qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket +
+                          n_pass_rushers,
+                        family = binomial, data = merged_ftn2023)
 
 
 
