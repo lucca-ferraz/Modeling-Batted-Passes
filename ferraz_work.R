@@ -68,6 +68,14 @@ merged_ftn2023 <- merged_ftn |>
 merged_ftn2022 <- merged_ftn |> 
   filter(season == 2022)
 
+pass_plays20192023 <- pass_plays20192023 |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  rename(qb_height = height)
+
+pass_plays2023 <- pass_plays2023 |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  rename(qb_height = height)
+
 # EDA Plots ---------------------------------------------------------------
 
 pass_plays2023 |> 
@@ -422,74 +430,134 @@ merged_ftn |>
 #   geom_point() +
 #   geom_line()
 
+pass_plays20192023 |> 
+  filter(!is.na(offense_formation)) |> 
+  group_by(offense_formation) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted), bat_pct = batted_balls / plays) |> 
+  ggplot(aes(offense_formation, bat_pct)) +
+  geom_col(fill = "darkgoldenrod4") +
+  ggthemes::theme_clean()
+
+# pass_plays20192023 |> 
+#   filter(!is.na(defense_man_zone_type)) |> 
+#   group_by(defense_man_zone_type) |> 
+#   summarise(plays = n(), batted_balls = sum(is_batted), bat_pct = batted_balls / plays) |> 
+#   ggplot(aes(defense_man_zone_type, bat_pct)) +
+#   geom_col()
+
+pass_plays20192023 |> 
+  filter(!is.na(defense_coverage_type)) |> 
+  group_by(defense_coverage_type) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted), bat_pct = batted_balls / plays) |> 
+  ggplot(aes(defense_coverage_type, bat_pct)) +
+  geom_col(fill = "dodgerblue4") +
+  ggthemes::theme_clean()
+pass_plays20192023 |> 
+  filter(!is.na(defense_personnel)) |> 
+  group_by(defense_personnel) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted), bat_pct = batted_balls / plays) |> 
+  filter(plays > 500) |> 
+  ggplot(aes(bat_pct, defense_personnel)) +
+  geom_col()
+
+pass_plays20192023 |> 
+  filter(!is.na(offense_personnel)) |> 
+  group_by(offense_personnel) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted), bat_pct = batted_balls / plays) |> 
+  filter(plays > 500) |> 
+  ggplot(aes(bat_pct, offense_personnel)) +
+  geom_col()
+
+pass_plays20192023 |> 
+  ggplot(aes(time_to_throw, fill = as.factor(is_batted))) +
+  geom_density(alpha = 0.4)
+
 # Modeling ----------------------------------------------------------------
 
 library(lme4)
-pass_plays20192023 <- pass_plays20192023 |> 
-  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
 passer_model <- glmer(is_batted ~ (1 | passer_name_id), family = binomial, 
-                    data = pass_plays20192023)
+                    data = merged_ftn)
 summary(passer_model)
-0.1106 / (0.1106 + (pi^2 / 3))
+0.03144 / (0.03144 + (pi^2 / 3))
 
-defense_model <- glmer(is_batted ~ (1 | defteam), family = binomial, data = pass_plays20192023)
+defense_model <- glmer(is_batted ~ (1 | defteam), family = binomial, data = merged_ftn)
 summary(defense_model)
-0.05247 / (0.05247 + (pi^2 / 3))
+0.07701 / (0.07701 + (pi^2 / 3))
 
 passer_and_defense_model <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam),
-                                  family = binomial, data = pass_plays20192023)
+                                  family = binomial, data = merged_ftn)
 summary(passer_and_defense_model)
 
-pass_plays2023 <- pass_plays2023 |> 
-  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
 pass_and_d_model23 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam),
-                              family = binomial, data = pass_plays2023)
+                              family = binomial, data = merged_ftn2023)
 summary(pass_and_d_model23)
 
 # install.packages("sjPlot")
 library(sjPlot)
-tab_model(passer_and_defense_model, pass_and_d_model23)
+library(gridExtra)
 
 full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
                           pass_location + qb_location + n_offense_backfield + 
                           is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
                         family = binomial, data = merged_ftn2023)
 summary(full_model2023)
+logistic_model2023 <- glm(is_batted ~ qb_height + pass_location + qb_location + 
+                            n_offense_backfield + is_play_action + is_rpo + 
+                            is_qb_out_of_pocket + n_pass_rushers, 
+                          family = binomial, data = merged_ftn2023)
+height_model2023 <- glm(is_batted ~ qb_height, family = binomial, data = merged_ftn2023)
+plot_models(height_model2023, full_model2023, 
+            rm.terms = c("pass_locationmiddle", "pass_locationright",
+                         "qb_locationP", "qb_locationS", "qb_locationU", 
+                         "n_offense_backfield", "is_play_actionTRUE", "is_rpoTRUE",
+                         "is_qb_out_of_pocketTRUE", "n_pass_rushers"))
+plot_models(logistic_model2023, full_model2023, 
+            rm.terms = c("pass_locationmiddle", "pass_locationright",
+                         "qb_locationP", "qb_locationS", "qb_locationU", 
+                         "n_offense_backfield", "is_play_actionTRUE", "is_rpoTRUE",
+                         "is_qb_out_of_pocketTRUE", "n_pass_rushers")) +
+  ggthemes::scale_color_fivethirtyeight(labels = c("mixed effects model", "logistic model")) 
 
+plot_models(logistic_model2023, full_model2023) +
+  ggthemes::scale_color_fivethirtyeight(labels = c("mixed effects model", "logistic model"))
+broom::tidy(logistic_model2023)
+tab_model(logistic_model2023, full_model2023)
+grid.arrange(log_plot23, full_plot23)
+?grid.arrange
+
+full_model2022 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2022)
+summary(full_model2022)
+logistic_model2022 <- glm(is_batted ~ qb_height + pass_location + qb_location + 
+                            n_offense_backfield + is_play_action + is_rpo + 
+                            is_qb_out_of_pocket + n_pass_rushers, 
+                          family = binomial, data = merged_ftn2022)
+summary(logistic_model2022)
+
+plot_models(logistic_model2022, full_model2022) +
+  ggthemes::scale_color_fivethirtyeight(labels = c("mixed effects model", "logistic model")) #+
+ggthemes::theme_clean()
 tab_model(pass_and_d_model23, full_model2023)
 
-pass_and_d_model22 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam),
-                            family = binomial, data = merged_ftn2022)
-summary(pass_and_d_model22)
+# pass_and_d_model22 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam),
+#                             family = binomial, data = merged_ftn2022)
+# summary(pass_and_d_model22)
+# 
+# passer_model2023 <- glmer(is_batted ~ (1 | passer_name_id), family = binomial,
+#                           data = merged_ftn2023)
+# summary(passer_model2023)
+# 0.0275 / (0.0275 + (pi^2 / 3))
+# 
+# defense_model2023 <- glmer(is_batted ~ (1 | defteam), family = binomial, 
+#                            data = merged_ftn2023)
+# summary(defense_model2023)
+# 0.1022 / (0.1022 + (pi^2 / 3))
 
-passer_model2023 <- glmer(is_batted ~ (1 | passer_name_id), family = binomial,
-                          data = pass_plays2023)
-summary(passer_model2023)
-0.0275 / (0.0275 + (pi^2 / 3))
 
-defense_model2023 <- glmer(is_batted ~ (1 | defteam), family = binomial, 
-                           data = pass_plays2023)
-summary(defense_model2023)
-0.1022 / (0.1022 + (pi^2 / 3))
 
-ranef(passer_model2023) |> 
-  as_tibble() |> 
-  arrange(condval)
-
-ranef(defense_model2023) |> 
-  as_tibble() |> 
-  arrange(-condval)
-
-ranef(passer_model2023) |> 
-  as_tibble() |> 
-  ggplot(aes(condval)) +
-  geom_density()
-
-ranef(defense_model2023) |> 
-  as_tibble() |> 
-  ggplot(aes(condval)) +
-  geom_density()
-
+# Model Plots -------------------------------------------------------------
 ranef(pass_and_d_model23) |> 
   as_tibble() |> 
   ggplot(aes(condval, fill = grpvar)) +
@@ -501,5 +569,41 @@ ranef(pass_and_d_model23) |>
   ggthemes::theme_clean() +
   ggthemes::scale_fill_tableau(label = c("Defensive Team", "Quarterback"))
 
-summary(pass_and_d_model23)
-summary(full_model2023)
+ranef(full_model2023) |> 
+  as_tibble() |> 
+  filter(grpvar == "passer_name_id") |> 
+  arrange(-condval) |> 
+  slice_head(n = 10) |> 
+  select(grp, condval) |> 
+  mutate(gsis_id = word(grp, 2),
+         name = word(grp, 1)) |> 
+  left_join(pass_plays2023 |> group_by(passer_id) |> summarise(team = last(posteam)), 
+            join_by("gsis_id" == "passer_id")) |> 
+  ggplot(aes(y = reorder(name, condval), x = condval, fill = team, label = condval)) +
+  geom_col() +
+  scale_fill_nfl() +
+  geom_point() +
+  ggthemes::theme_clean() +
+  nflplotR::geom_nfl_headshots(aes(player_gsis = gsis_id), height = 0.2, width = 0.1) +
+  labs(title = "QBs With the Highest Coefficients in 2023 (More Batted Passes)",
+       x = "Coefficient", y = "")
+
+ranef(full_model2023) |> 
+  as_tibble() |> 
+  filter(grpvar == "passer_name_id") |> 
+  arrange(condval) |> 
+  slice_head(n = 10) |> 
+  select(grp, condval) |> 
+  mutate(gsis_id = word(grp, 2),
+         name = word(grp, 1)) |> 
+  left_join(pass_plays2023 |> group_by(passer_id) |> summarise(team = last(posteam)), 
+            join_by("gsis_id" == "passer_id")) |> 
+  ggplot(aes(y = reorder(name, condval), x = condval, fill = team, label = condval)) +
+  geom_col() +
+  scale_fill_nfl() +
+  geom_point() +
+  ggthemes::theme_clean() +
+  nflplotR::geom_nfl_headshots(aes(player_gsis = gsis_id), height = 0.2, width = 0.1) +
+  labs(title = "QBs With the Lowest Coefficients in 2023 (Less Batted Passes)",
+       x = "Coefficient", y = "")
+
