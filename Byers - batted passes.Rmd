@@ -903,11 +903,13 @@ allpassinfo_def_glmm |>  tidy()
 ```
 
 ```{r model coefficient plot}
-#ydstogo and down have coefficients of basically 0
+#ydstogo, score_differential and down have coefficients of basically 0
+#cpoe estimate of -0.07 ish for both def and qb randomness
+# cp estimate almost 3 for each def and qb randomness
 
 # DEFENSIVE ROUTE
 #fit and summary
-all_fit <- glmer(is_batted ~ pass_location + pass_length + shotgun+ score_differential + (1 | defteam),
+all_fit <- glmer(is_batted ~ pass_location + pass_length + shotgun + cp+ (1 | defteam),
                      family = binomial,
                      data = pass_by_qb_2023)
 
@@ -933,7 +935,7 @@ all_fit |> tidy(conf.int = TRUE)
 
 # QB ROUTE
 #fit and summary
-all_fit_qb <- glmer(is_batted ~ pass_location + pass_length + shotgun+ score_differential +  (1 | passer_player_name),
+all_fit_qb <- glmer(is_batted ~ pass_location + pass_length + shotgun +  cp+(1 | passer_player_name),
                      family = binomial,
                      data = pass_by_qb_2023)
 
@@ -953,8 +955,7 @@ all_fit_qb |>
 all_fit_qb |> tidy(conf.int = TRUE)
 ```
 
-
-```{r yards togo}
+```{r yards togo + down}
 excel_batted |> 
   group_by(togo) |> 
   ggplot(aes(x = togo)) + 
@@ -967,4 +968,6 @@ excel_batted |>
 
 ```
 
+```{r participation}
 
+```

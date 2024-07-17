@@ -1,0 +1,143 @@
+---
+title: "Title"
+author:
+  - Lucca Ferraz
+  - Maggie Byers
+  - Amelia Yixin
+date: "July 26, 2024"
+toc: true
+format:
+  html:
+    theme: cosmo
+    html-math-method: katex
+    self-contained: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+---
+
+## Introduction 
+
+Describe the problem and why it is important.
+
+## Data
+
+Describe the data you’re using in detail, where you accessed it, along with relevant exploratory data analysis (EDA). You should also include descriptions of any major data pre-processing/cleaning steps.
+
+## Methods
+
+Describe the modeling techniques you chose, their assumptions, justifications for why they are appropriate for the problem, and your plan for comparison/evaluation approaches.
+
+## Results
+
+Describe your results. This can include tables and plots showing your results, as well as text describing how your models worked and the appropriate interpretations of the relevant output. (Note: Don’t just write out the textbook interpretations of all model coefficients! Instead, interpret the output that is relevant for your question of interest that is framed in the introduction)
+
+## Discussion
+
+Give your conclusions and summarize what you have learned with regards to your question of interest. Are there any limitations with the approaches you used? What do you think are the next steps to follow-up your project?
+
+## Appendix: A quick tutorial
+
+**(Feel free to remove this section when you submit)**
+
+This a Quarto document. 
+To learn more about Quarto see <https://quarto.org>.
+You can use the Render button to see what it looks like in HTML.
+
+### Text formatting
+
+Text can be bolded with **double asterisks** and italicized with *single asterisks*. 
+Monospace text, such as for short code snippets, uses `backticks`.
+(Note these are different from quotation marks or apostrophes.) Links are
+written [like this](http://example.com/).
+
+Bulleted lists can be written with asterisks:
+
+* Each item starts on a new line with an asterisk.
+* Items should start on the beginning of the line.
+* Leave blank lines after the end of the list so the list does not continue.
+
+Mathematics can be written with LaTeX syntax using dollar signs. 
+For instance, using single dollar signs we can write inline math: $(-b \pm \sqrt{b^2 - 4ac})/2a$.
+
+To write math in "display style", i.e. displayed on its own line centered on the
+page, we use double dollar signs:
+$$
+x^2 + y^2 = 1
+$$
+
+
+### Code blocks
+
+Code blocks are evaluated sequentially when you hit Render. 
+As the code runs, `R` prints out which block is running, so naming blocks is useful if you want to know which one takes a long time. 
+After the block name, you can specify [chunk options](https://yihui.org/knitr/options/). 
+For example, `echo` controls whether the code is printed in the document. 
+By default, output is printed in the document in monospace:
+
+```{r, echo = FALSE}
+head(mtcars)
+```
+
+Chunk options can also be written inside the code block, which is helpful for really long options, as we'll see soon.
+
+```{r}
+#| echo: false
+head(mtcars)
+```
+
+### Figures
+
+If a code block produces a plot or figure, this figure will automatically be inserted inline in the report. That is, it will be inserted exactly where the code block is.
+
+```{r}
+#| fig-width: 5
+#| fig-height: 3.5
+#| fig-cap: "This is a caption. It should explain what's in the figure and what's interesting about it. For instance: There is a negative, strong linear correlation between miles per gallon and horsepower for US cars in the 1970s."
+
+library(tidyverse)
+mtcars |> 
+  ggplot(aes(x = mpg, y = hp)) +
+  geom_point() +
+  labs(x = "Miles per gallon",
+       y = "Horsepower")
+```
+
+Notice the use of `fig-width` and `fig-height` to control the figure's size (in inches). 
+These control the sizes given to `R` when it generates the plot, so `R` proportionally adjusts the font sizes to be large enough.
+
+### Tables
+
+Use the `knitr::kable()` function to print tables as HTML:
+
+```{r}
+mtcars |> 
+  slice(1:5) |> 
+  knitr::kable()
+```
+
+We can summarize model results with a table. 
+For instance, suppose we fit a linear regression model:
+
+```{r}
+#| echo: true
+model1 <- lm(mpg ~ disp + hp + drat, data = mtcars)
+```
+
+It is *not* appropriate to simply print `summary(model1)` into the report. 
+If we want the reader to understand what models we have fit and what their results are, we should provide a nicely formatted table. 
+A simple option is to use the `tidy()` function from the `broom` package to get a data frame of the model fit, and simply report that as a table.
+
+```{r }
+#| results: "asis"
+#| tbl-cap: "Predicting fuel economy using vehicle features."
+
+library(broom)
+model1 |> 
+  tidy() |>
+  knitr::kable(digits = 2,
+               col.names = c("Term", "Estimate", "SE", "t", "p"))
+```
