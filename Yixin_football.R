@@ -20,6 +20,7 @@ dim(pbp_data)
 unique(pbp_data$season)
 # [1] 2019 2020 2021 2022 2023
 pbp_data_2023 <- load_pbp(2023)
+
 dim(pbp_data_2023)
 unique(pbp_data_2023$season)
 # [1] 2023
@@ -38,6 +39,7 @@ library(readxl)
 getwd()
 excel_file_path <- "/Users/amelia/Desktop/Sports Project Yixin/2019-2023 Batted Passes.xlsx"
 pass_data <- read_excel(excel_file_path)
+
 pass_data$player
 str(pass_data)
 head(pass_data)
@@ -66,6 +68,7 @@ pass_plays2023 <- all_plays2023 |>
 sum(pass_plays2023$is_batted)
 
 pass_plays2023$is_batted
+pass_plays2023$qb_location
 
 sum(pass_plays2023$is_batted)
 
@@ -387,6 +390,8 @@ total_passes_data_qb_names <- pbp_data |>
   left_join(qb_names, by = c("passer_player_id" = "gsis_id")) |>
   rename(qb_name = display_name)  
 
+print(unique(total_passes_data_qb_names$season))
+
 # join with batted_passes_data to get batted passes count
 batted_passes_data <- pbp_data |>
   filter(is_batted == 1)
@@ -432,6 +437,188 @@ ggplot(batted_passes_summary_qb, aes(x = as.factor(season),
   ) +
   theme_minimal() +
   theme(legend.position = "none") 
+
+###########################################################################
+# Percentage of Batted Passes by Top 10 QB Players Across Seasons
+# calculate the percentage of batted passes of each QB player
+
+overall_batted_passes <- batted_passes_summary_qb %>%
+  group_by(qb_name) %>%
+  summarise(average_percentage_batted = mean(percentage_batted_passes_qb), .groups = 'drop')
+
+# top 10
+top_qbs <- overall_batted_passes %>%
+  top_n(10, average_percentage_batted) %>%
+  pull(qb_name)
+
+top_qbs
+
+# [1] "Anthony Richardson" "Blaine Gabbert"     "Brett Rypien"      
+# [4] "Clayton Tune"       "Drew Lock"          "Gardner Minshew"   
+# [7] "Jeff Driskel"       "Marcus Mariota"     "Taysom Hill"       
+# [10] "Trevor Siemian"
+
+# filter
+top_qb_data <- batted_passes_summary_qb %>%
+  filter(qb_name %in% top_qbs)
+
+print(unique(top_qb_data$season))
+ggplot(top_qb_data, aes(x = as.factor(season), y = percentage_batted_passes_qb, group = qb_name, color = qb_name)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Percentage of Batted Passes by Top 10 QB Players Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = rainbow(10))  
+
+###########################################################################
+# Relationship Between Top QBs' and Their Teams' Percentage of Batted Passes
+colnames(batted_passes_summary_qb)
+colnames(top_qb_data)
+pbp_data_with_names <- pbp_data %>%
+  left_join(qb_names, by = c("passer_player_id" = "gsis_id"))
+colnames(pbp_data_with_names)
+# Extract necessary QB data with team information
+qb_batted_passes_summary <- pbp_data_with_names %>%
+  select(season, qb_name = display_name, posteam, is_batted) %>%
+  group_by(season, qb_name, posteam) %>%
+  summarise(batted_passes_qb = sum(is_batted == 1),
+            total_passes_qb = n(), .groups = 'drop') %>%
+  mutate(percentage_batted_passes_qb = (batted_passes_qb / total_passes_qb) * 100)
+
+# Assuming pbp_data contains the necessary fields
+team_batted_passes_summary <- pbp_data %>%
+  group_by(season, posteam) %>%
+  summarise(total_passes_team = n(),
+            batted_passes_team = sum(is_batted == 1), .groups = 'drop') %>%
+  mutate(percentage_batted_passes_team = (batted_passes_team / total_passes_team) * 100)
+
+# Join the enhanced QB data with the team data
+# Correct Join to Include QB Data
+combined_data <- qb_batted_passes_summary %>%
+  left_join(team_batted_passes_summary, by = c("season", "posteam"))
+
+# Check the columns in the combined dataset
+print(colnames(combined_data))
+
+colnames(pbp_data)
+colnames(players_data)
+# Check columns in QB data just before the join
+print(colnames(qb_batted_passes_summary))
+
+
+# Identify top 10 QBs based on their average batted passes percentage
+top_qbs <- qb_batted_passes_summary %>%
+  group_by(qb_name) %>%
+  summarise(average_percentage_batted = mean(percentage_batted_passes_qb), .groups = 'drop') %>%
+  top_n(10, average_percentage_batted) %>%
+  pull(qb_name)
+top_qbs
+# Filter the combined data for these top QBs
+# Filter the combined data for these top QBs
+top_qb_team_data <- combined_data %>%
+  filter(qb_name %in% top_qbs)
+
+# Check results
+print(head(top_qb_team_data))
+
+# Calculate average percentages for further insights
+average_stats <- top_qb_team_data %>%
+  group_by(qb_name) %>%
+  summarise(
+    avg_percentage_qb = mean(percentage_batted_passes_qb, na.rm = TRUE),
+    avg_percentage_team = mean(percentage_batted_passes_team, na.rm = TRUE)
+  )
+print(average_stats)
+library(ggplot2)
+
+# Plotting to visualize the relationship
+ggplot(top_qb_team_data, aes(x = percentage_batted_passes_qb, y = percentage_batted_passes_team, color = qb_name)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Linear regression line
+  labs(
+    title = "Relationship Between Top QBs' and Their Teams' Percentage of Batted Passes",
+    x = "QB's Percentage of Batted Passes",
+    y = "Team's Percentage of Batted Passes"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")  # Use a nice color palette
+
+###########################################################################
+# Relationship Between Last QBs' and Their Teams' Percentage of Batted Passes
+last_qbs <- qb_batted_passes_summary %>%
+  group_by(qb_name) %>%
+  summarise(average_percentage_batted = mean(percentage_batted_passes_qb), .groups = 'drop') %>%
+  slice_min(order_by = average_percentage_batted, n = 10) %>%
+  pull(qb_name)
+last_qbs
+# Filter the combined data for these top QBs
+# Filter the combined data for these top QBs
+last_qb_team_data <- combined_data %>%
+  filter(qb_name %in% last_qbs)
+
+# Check results
+print(head(last_qb_team_data))
+
+# Calculate average percentages for further insights
+average_stats <- last_qb_team_data %>%
+  group_by(qb_name) %>%
+  summarise(
+    avg_percentage_qb = mean(percentage_batted_passes_qb, na.rm = TRUE),
+    avg_percentage_team = mean(percentage_batted_passes_team, na.rm = TRUE)
+  )
+print(average_stats)
+library(ggplot2)
+
+# Plotting to visualize the relationship
+ggplot(last_qb_team_data, aes(x = percentage_batted_passes_qb, y = percentage_batted_passes_team, color = qb_name)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Linear regression line
+  labs(
+    title = "Relationship Between Last QBs' and Their Teams' Percentage of Batted Passes",
+    x = "QB's Percentage of Batted Passes",
+    y = "Team's Percentage of Batted Passes"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") 
+
+###########################################################################
+library(dplyr)
+# 10 QB Players with Least Percentage of Batted Passes  Across Seasons
+last_qbs <- overall_batted_passes %>%
+  slice_min(order_by = average_percentage_batted, n = 10) %>%
+  pull(qb_name)
+
+last_qbs_all <- overall_batted_passes %>%
+  slice_min(order_by = average_percentage_batted, n = 40) %>%
+  pull(qb_name, average_percentage_batted)
+last_qbs_all
+last_qbs
+# [1] NA             "Kirk Cousins" "Joe Flacco"   "Joshua Dobbs" "Jordan Love"  "Tyrod Taylor"
+# [7] "Bryce Young"  "Derek Carr"   "Daniel Jones" "Easton Stick"
+
+# filter
+last_qb_data <- batted_passes_summary_qb %>%
+  filter(qb_name %in% last_qbs)
+
+print(unique(last_qb_data$season))
+ggplot(last_qb_data, aes(x = as.factor(season), y = percentage_batted_passes_qb, group = qb_name, color = qb_name)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Percentage of Batted Passes by Last 10 QB Players Across Seasons",
+    x = "Season",
+    y = "Percentage of Batted Passes (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = rainbow(10))  
+
+###########################################################################
 
 ### Defensive
 library(dplyr)
@@ -551,30 +738,101 @@ ggplot(batted_passes_summary_df, aes(x = as.factor(season),
 
 
 #################################################################################
-# Elo ratings
-
-# Need to have the tidyverse installed prior to starting!
-library(tidyverse)
-
-# Only include games during the 2023-24 season
-pbp_games_2023 <- all_plays2023
-
-pbp_games_2023
-getwd()
-
-# The week column just increases in the correct order, which will be convenient 
-# for implementing Elo ratings over the course of the NFL season.
-
-# Calculating and Updating Ratings
-
 
 
 #################################################################################
 
-# Model
+# Modeling
+
+# FTN dataset
+ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
+ftn_charting_clean <- ftn_charting |> 
+  select(game_id = nflverse_game_id, play_id = nflverse_play_id, 
+         starting_hash:n_pass_rushers, -is_qb_sneak)
+
+pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
+  filter(play_type == "pass")
+
+pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
+
+merged_ftn <- pass_plays20222023 |> 
+  select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
+         pass_defense_1_player_name, is_batted) |> 
+  left_join(ftn_charting_clean) |> 
+  select(-qb_kneel, -qb_spike) |> 
+  mutate(game_date = as.Date(game_date),
+         year = substr(old_game_id, 1, 4),
+         season = ifelse(game_date < as.Date("2023-02-13"), 2022, 2023))
+
+merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
+
+sum(merged_ftn$is_batted)
+
+print(unique(merged_ftn$qb_location))
+# [1] "S" "U" "P" NA  "0"
+
+# ftn join with playsers data to get qb_height
+players_data <- nflreadr::load_players()
+colnames(players_data)
+
+# get height
+head(players_data$gsis_id) # Game Statistics and Information System
+head(batted_passes_data$passer_player_id)
+
+unique(players_data$position)
+
+players_data |>
+  filter(status == "ACT") # != RET
+
+qb_height <- players_data |>
+  filter(position == "QB") |>
+  select(gsis_id, height)
+
+# join data
+merged_ftn <- merged_ftn |>
+  filter(is_batted == 1) |>
+  left_join(qb_height, by = c("passer_player_id" = "gsis_id")) |>
+  rename(qb_height = height) 
+
 colnames(pbp_data)
 
+install.packages("lme4")
+library(lme4)
+library(dplyr)
+print(unique(merged_ftn$season))
+merged_ftn2023 <- merged_ftn |> 
+  filter(season == 2023) |>
+  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
 
+colnames(merged_ftn2023)
+
+merged_ftn2023$qb_location
+str(merged_ftn2023$qb_height)
+install.packages("Matrix")
+update.packages(ask = FALSE)
+
+remove.packages("lme4")
+remove.packages("Matrix")
+install.packages("Matrix", type = "source")
+
+install.packages("lme4", type="source")
+library(lme4)
+# Reinstall lme4 and Matrix specifically
+install.packages("Matrix", dependencies = TRUE)
+install.packages("lme4", dependencies = TRUE)
+remove.packages("Matrix")
+install.packages("Matrix")
+install.packages("lme4")
+library(Matrix)
+full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
+                          qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket +
+                          n_pass_rushers,
+                        family = binomial, data = merged_ftn2023)
+
+install.packages("installr")
+updateR()
 
 
 

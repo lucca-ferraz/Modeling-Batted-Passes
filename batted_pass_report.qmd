@@ -1,0 +1,207 @@
+---
+title: "Explaining of Batted Passes in the NFL"
+author:
+  - Lucca Ferraz
+  - Maggie Byers
+  - Amelia Yixin
+date: "July 26, 2024"
+toc: true
+format:
+  html:
+    theme: cosmo
+    html-math-method: katex
+    self-contained: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+---
+
+## Introduction 
+
+#Describe the problem and why it is important.
+
+Batted passes occur when a quarterback throws the ball and a defender hits it down, typically around the line of scrimmage. Batted passes usually result in an incomplete pass and a loss of down which does not advance the ball and hurts the offensive team's chance of scoring. In this project, we attempted to isolate the factors that go into causing batted passes so that coaches and teams can lower the number of their passes that get batted and increase the number of passes they bat down. 
+
+
+## Data
+
+#Describe the data you’re using in detail, where you accessed it, along with relevant exploratory data analysis (EDA). You should also include descriptions of any major data pre-processing/cleaning steps.
+
+Throughout this project, we used data from the nflverse package, specifically player and play by play data. We were also provided data by For The Number (FTN) which proved to be an invaluable resource as the nflverse data does not indicate if a pass was batted. By combining the data from both sources, we were able to get a detailed picture of what happened in every play of every game. We decided to focus on the two most recent NFL seasons, 2022 and 2023, for the majority of our analysis. 
+
+One of our biggest data cleaning steps was making sure each team's initials were done the same in the FTN and nflverse datasets. Only one team was different, the Los Angeles Rams were shortened to "LA" in one dataset and "LAR" in the other. Also before merging datasets, we created a column in the FTN data to indicate with a 1 that every pass was batted and after merging, assigned each N/A value to be 0, indicating the pass was not batted. We also had to assign what season every game was in as the data currently only included the date of the game. We merged in two separate nflverse datasets, one for the play by play data and one for player data from which we were able to get quarterback heights. After merging the three datasets, we filtered out all events that were not passes. 
+
+We began exploring the data by creating visualizations displaying quarterback height and the count and percentage of batted passes they have thrown. From our initial exploration, all of our graphics showed that height does not have a significant impact on if a pass gets batted down. 
+
+```{r}
+#| fig-width: 5
+#| fig-height: 3.5
+#| fig-cap: "This is a caption. It should explain what's in the figure and what's interesting about it. For instance: There is a negative, strong linear correlation between miles per gallon and horsepower for US cars in the 1970s."
+
+library(tidyverse)
+mtcars |> 
+  ggplot(aes(x = mpg, y = hp)) +
+  geom_point() +
+  labs(x = "Miles per gallon",
+       y = "Horsepower")
+```
+
+The next aspect we explored was the location and length of the pass. Short passes are significantly more likely to be batted down than deep passes. Similarly, passes thrown towards the middle of the field are slightly more likely to be batted when compared to passes thrown to the left or right sides of the field.
+
+**insert visualizations like above**
+
+Another offensive characteristic available to us was the quarterback location at the start of the play, shotgun, pistol or under center. There was no clear indication of one formation creating more batted passes than another. We also knew how many offensive backfielders there were on the field during each play and our graphs showed that more offensive backfielders lead to less batted passes. 
+
+**insert visualizations like above**
+
+We then looked at defensive characteristics to see if they contribute to batted passes. With the FTN data, we were able to see how many pass rushers there were in each pass play. Charting these, we saw that more pass rushers correlated with more batted passes.
+
+**insert visualizations like above**
+
+Through the nflverse data, we were able to see the air yards of each pass. Modeling showed that batted passes strongly align with lower air yard values, which makes sense as low air yards is more of a consequence of a batted pass rather than something that could cause it. Once we got to the modeling process, we cut out air yards from our models as it came out as the most important variable by far for every model.
+
+**insert visualizations like above**
+
+
+
+## Methods
+
+#Describe the modeling techniques you chose, their assumptions, justifications for why they are appropriate for the problem, and your plan for comparison/evaluation approaches.
+
+Because we have quarterbacks throwing multiple passes, each pass one quarterback throws is not independent from their other passes. That quarterback will have their own randomness they bring to the table based on their individual playing style. The same idea applies to each teams' defensive lineup, a pass batted by one team is not independent of the same team not batting another pass. To handle this, we used a multilevel logistic model, multilevel to handle the random effects from having the same quarterback throwing multiple passes and the same defense defending against multiple passes, and logistic because our response variable, is the pass batted or not, is indicated by a binary variable. 
+
+After deciding on the random effects variables, we began choosing fixed effects variables. We chose to use many of the variables we conducted exploratory data analysis on, including quarterback height, pass location, quarterback location, number of pass rushers, number of offensive backfielders and **several others**. 
+
+We plan to use the variance of the random effects (quarterback and defensive team) to determine which has a bigger effect on causing batted passes. We will use the odd ratios of our fixed effect variables to determine what impact, if any, each variable has. An odds ratio of greater than 1, indicates that as that variable increases, the chances of a pass being batted increases. The opposite is true for odds ratios of less than 1, the more that variable increases, the less likely a pass is to be batted. An odds ratio of 1 suggests there is no relationship between the variable and a pass being batted. 
+
+
+## Results
+
+#Describe your results. This can include tables and plots showing your results, as well as text describing how your models worked and the appropriate interpretations of the relevant output. (Note: Don’t just write out the textbook interpretations of all model coefficients! Instead, interpret the output that is relevant for your question of interest that is framed in the introduction)
+
+
+
+
+## Discussion
+
+#Give your conclusions and summarize what you have learned with regards to your question of interest. Are there any limitations with the approaches you used? What do you think are the next steps to follow-up your project?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Appendix: A quick tutorial
+
+**(Feel free to remove this section when you submit)**
+
+This a Quarto document. 
+To learn more about Quarto see <https://quarto.org>.
+You can use the Render button to see what it looks like in HTML.
+
+### Text formatting
+
+Text can be bolded with **double asterisks** and italicized with *single asterisks*. 
+Monospace text, such as for short code snippets, uses `backticks`.
+(Note these are different from quotation marks or apostrophes.) Links are
+written [like this](http://example.com/).
+
+Bulleted lists can be written with asterisks:
+
+* Each item starts on a new line with an asterisk.
+* Items should start on the beginning of the line.
+* Leave blank lines after the end of the list so the list does not continue.
+
+Mathematics can be written with LaTeX syntax using dollar signs. 
+For instance, using single dollar signs we can write inline math: $(-b \pm \sqrt{b^2 - 4ac})/2a$.
+
+To write math in "display style", i.e. displayed on its own line centered on the
+page, we use double dollar signs:
+$$
+x^2 + y^2 = 1
+$$
+
+
+### Code blocks
+
+Code blocks are evaluated sequentially when you hit Render. 
+As the code runs, `R` prints out which block is running, so naming blocks is useful if you want to know which one takes a long time. 
+After the block name, you can specify [chunk options](https://yihui.org/knitr/options/). 
+For example, `echo` controls whether the code is printed in the document. 
+By default, output is printed in the document in monospace:
+
+```{r, echo = FALSE}
+head(mtcars)
+```
+
+Chunk options can also be written inside the code block, which is helpful for really long options, as we'll see soon.
+
+```{r}
+#| echo: false
+head(mtcars)
+```
+
+### Figures
+
+If a code block produces a plot or figure, this figure will automatically be inserted inline in the report. That is, it will be inserted exactly where the code block is.
+
+```{r}
+#| fig-width: 5
+#| fig-height: 3.5
+#| fig-cap: "This is a caption. It should explain what's in the figure and what's interesting about it. For instance: There is a negative, strong linear correlation between miles per gallon and horsepower for US cars in the 1970s."
+
+library(tidyverse)
+mtcars |> 
+  ggplot(aes(x = mpg, y = hp)) +
+  geom_point() +
+  labs(x = "Miles per gallon",
+       y = "Horsepower")
+```
+
+Notice the use of `fig-width` and `fig-height` to control the figure's size (in inches). 
+These control the sizes given to `R` when it generates the plot, so `R` proportionally adjusts the font sizes to be large enough.
+
+### Tables
+
+Use the `knitr::kable()` function to print tables as HTML:
+
+```{r}
+mtcars |> 
+  slice(1:5) |> 
+  knitr::kable()
+```
+
+We can summarize model results with a table. 
+For instance, suppose we fit a linear regression model:
+
+```{r}
+#| echo: true
+model1 <- lm(mpg ~ disp + hp + drat, data = mtcars)
+```
+
+It is *not* appropriate to simply print `summary(model1)` into the report. 
+If we want the reader to understand what models we have fit and what their results are, we should provide a nicely formatted table. 
+A simple option is to use the `tidy()` function from the `broom` package to get a data frame of the model fit, and simply report that as a table.
+
+```{r }
+#| results: "asis"
+#| tbl-cap: "Predicting fuel economy using vehicle features."
+
+library(broom)
+model1 |> 
+  tidy() |>
+  knitr::kable(digits = 2,
+               col.names = c("Term", "Estimate", "SE", "t", "p"))
+```
