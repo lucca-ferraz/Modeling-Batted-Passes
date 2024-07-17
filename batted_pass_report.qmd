@@ -3,7 +3,7 @@ title: "Title"
 author:
   - Lucca Ferraz
   - Maggie Byers
-  - Amelia Yixin
+  - Amelia Yuan
 date: "July 26, 2024"
 toc: true
 format:
