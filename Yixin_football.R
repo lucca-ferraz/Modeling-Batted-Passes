@@ -20,6 +20,7 @@ dim(pbp_data)
 unique(pbp_data$season)
 # [1] 2019 2020 2021 2022 2023
 pbp_data_2023 <- load_pbp(2023)
+
 dim(pbp_data_2023)
 unique(pbp_data_2023$season)
 # [1] 2023
@@ -38,6 +39,7 @@ library(readxl)
 getwd()
 excel_file_path <- "/Users/amelia/Desktop/Sports Project Yixin/2019-2023 Batted Passes.xlsx"
 pass_data <- read_excel(excel_file_path)
+
 pass_data$player
 str(pass_data)
 head(pass_data)
@@ -66,6 +68,7 @@ pass_plays2023 <- all_plays2023 |>
 sum(pass_plays2023$is_batted)
 
 pass_plays2023$is_batted
+pass_plays2023$qb_location
 
 sum(pass_plays2023$is_batted)
 
@@ -739,15 +742,49 @@ ggplot(batted_passes_summary_df, aes(x = as.factor(season),
 
 #################################################################################
 
-# Model
+# Modeling
+
+# FTN dataset
+ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
+ftn_charting_clean <- ftn_charting |> 
+  select(game_id = nflverse_game_id, play_id = nflverse_play_id, 
+         starting_hash:n_pass_rushers, -is_qb_sneak)
+
+pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
+  filter(play_type == "pass")
+
+pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
+
+merged_ftn <- pass_plays20222023 |> 
+  select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
+         pass_defense_1_player_name, is_batted) |> 
+  left_join(ftn_charting_clean) |> 
+  select(-qb_kneel, -qb_spike) |> 
+  mutate(game_date = as.Date(game_date),
+         year = substr(old_game_id, 1, 4),
+         season = ifelse(game_date < as.Date("2023-02-13"), 2022, 2023))
+
+merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
+
+sum(merged_ftn$is_batted)
+
+print(unique(merged_ftn$qb_location))
+# [1] "S" "U" "P" NA  "0"
+
 colnames(pbp_data)
 
 install.packages("lme4")
 library(lme4)
 library(dplyr)
-merged_ftn2023 <- pbp_data_2023 |> 
-  mutate(passer_info = paste(passer_player_name, passer_player_id))
+print(unique(merged_ftn$season))
+merged_ftn2023 <- merged_ftn |> 
+  select(season = 2023) |>
+  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
+
 colnames(merged_ftn2023)
+
+pass_plays2023$qb_location
+merged_ftn2023$qb_location
 
 full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
                           qb_height +
