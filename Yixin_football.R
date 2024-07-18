@@ -40,7 +40,6 @@ getwd()
 excel_file_path <- "/Users/amelia/Desktop/Sports Project Yixin/2019-2023 Batted Passes.xlsx"
 pass_data <- read_excel(excel_file_path)
 
-pass_data$player
 str(pass_data)
 head(pass_data)
 summary(pass_data)
@@ -65,7 +64,6 @@ all_plays2023$is_batted <- all_plays2023$is_batted |>
   replace_na(0)
 pass_plays2023 <- all_plays2023 |> 
   filter(play_type == "pass")
-sum(pass_plays2023$is_batted)
 
 pass_plays2023$is_batted
 pass_plays2023$qb_location
@@ -790,11 +788,12 @@ qb_height <- players_data |>
 
 # join data
 merged_ftn <- merged_ftn |>
-  filter(is_batted == 1) |>
+  #filter(is_batted == 1) |>
   left_join(qb_height, by = c("passer_player_id" = "gsis_id")) |>
   rename(qb_height = height) 
 
 colnames(pbp_data)
+merged_ftn$qb_height
 
 install.packages("lme4")
 library(lme4)
@@ -818,11 +817,11 @@ install.packages("Matrix", type = "source")
 install.packages("lme4", type="source")
 library(lme4)
 # Reinstall lme4 and Matrix specifically
-install.packages("Matrix", dependencies = TRUE)
-install.packages("lme4", dependencies = TRUE)
-remove.packages("Matrix")
-install.packages("Matrix")
-install.packages("lme4")
+# install.packages("Matrix", dependencies = TRUE)
+# install.packages("lme4", dependencies = TRUE)
+# remove.packages("Matrix")
+# install.packages("Matrix")
+# install.packages("lme4")
 library(Matrix)
 full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
                           qb_height +
@@ -830,9 +829,21 @@ full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
                           is_play_action + is_rpo + is_qb_out_of_pocket +
                           n_pass_rushers,
                         family = binomial, data = merged_ftn2023)
+full_model2023
 
-install.packages("installr")
-updateR()
+print(unique(merged_ftn2023$is_batted))
+
+install.packages("broom.mixed")
+
+library(broom)
+library(broom.mixed)
+tidy_model <- tidy(full_model2023)
+print(tidy_model)
+
+install.packages("DT")
+library(DT)
+tidy_model <- tidy(full_model2023)
+DT::datatable(tidy_model)
 
 
 
