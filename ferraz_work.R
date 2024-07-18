@@ -555,10 +555,61 @@ tab_model(pass_and_d_model23, full_model2023)
 # summary(defense_model2023)
 # 0.1022 / (0.1022 + (pi^2 / 3))
 
+tab_model(full_model2023, full_model2022)
+plot_models(full_model2023, full_model2022) +
+  ggthemes::scale_color_fivethirtyeight(labels = c("2022 Model", "2023 Model")) +
+  guides(color = guide_legend(title = "Coefficient Estimates"))
 
+library(broom.mixed)
+# install.packages("dotwhisker")
+library(dotwhisker)
+tidy_model23 <- tidy(full_model2023) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2023) 
+
+tidy_model22 <- tidy(full_model2022) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2022)
+
+bind_rows(tidy_model23, tidy_model22) |> 
+  filter(!is.na(std.error) & !is.na(estimate)) |> 
+  relabel_predictors(qb_height = "QB Height", pass_locationmiddle = "Pass Middle",
+                     pass_locationright = "Pass Right", qb_locationS = "Shotgun", 
+                     qb_locationU = "Under Center", 
+                     n_offense_backfield = "Number of Players in Off. Backfield",
+                     is_play_actionTRUE = "Play-Action Pass", is_rpoTRUE = "Run-Pass Option",
+                     is_qb_out_of_pocketTRUE = "QB Outside of Pocket", 
+                     n_pass_rushers = "Number of Pass Rushers",
+                     qb_locationP = "Pistol") |> 
+  dwplot(ci = 0.68, vline = geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5),
+         dot_args = list(size = 3), whisker_args = list(size = .6)) +
+    aes(alpha = !(std.error >= abs(estimate))) +
+    scale_alpha_manual(breaks = c(FALSE, TRUE), values = c(0.25, 1), 
+                       labels = c("Contains zero", "Does not contain zero"),
+                       ) +
+    ggthemes::scale_color_fivethirtyeight() +
+    theme_bw() + 
+    labs(color = "Model", alpha = "Interval contains zero") 
 
 # Model Plots -------------------------------------------------------------
-ranef(pass_and_d_model23) |> 
+tidy_coef22 <- tidy(full_model2022, effects = "ran_vals") |> 
+  mutate(season = 2022)
+
+tidy_coef23 <- tidy(full_model2023, effects = "ran_vals") |> 
+  mutate(season = 2023)
+
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  ggplot(aes(estimate, fill = group)) +
+  geom_density() +
+  facet_wrap(~ season) +
+  labs(title = "Distribution of Random Effects", 
+       subtitle = "QB Coefficients vs Defensive Team Coefficients",
+       x = "Coefficient", y = "Density",
+       fill = "Coefficient Type") +
+  ggthemes::theme_clean() +
+  ggthemes::scale_fill_tableau(label = c("Defensive Team", "Quarterback"))
+
+ranef(full_model2023) |> 
   as_tibble() |> 
   ggplot(aes(condval, fill = grpvar)) +
   geom_density() +
