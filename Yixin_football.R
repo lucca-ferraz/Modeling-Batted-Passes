@@ -830,12 +830,21 @@ full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) +
                           n_pass_rushers,
                         family = binomial, data = merged_ftn2023)
 full_model2023
+
 print(unique(merged_ftn2023$is_batted))
 
-install.packages("installr")
-updateR()
+install.packages("broom.mixed")
 
-# test
+library(broom)
+library(broom.mixed)
+tidy_model <- tidy(full_model2023)
+print(tidy_model)
+
+install.packages("DT")
+library(DT)
+tidy_model <- tidy(full_model2023)
+DT::datatable(tidy_model)
+
 
 
 
