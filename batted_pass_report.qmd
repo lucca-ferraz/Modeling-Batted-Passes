@@ -235,58 +235,6 @@ pass_by_qb |>
 ```
 Through the nflverse data, we were able to see the air yards of each pass. Modeling showed that batted passes strongly align with lower air yard values, which makes sense as low air yards is more of a consequence of a batted pass rather than something that could cause it. Once we got to the modeling process, we cut out air yards from our models as it came out as the most important variable by far for every model.
 
-```{r}
-#| fig-width: 5
-#| fig-height: 3.5
-#| fig-cap: "Each row in this graph represents the passes thrown by a single quarterback in 2023. Each dot is a pass with a red dot being a non batted pass and a blue dot being a batted one. This graph shows that batted passes tend to have much lower air yards."
-
-library(tidyverse)
-library(readxl)
-
-#creating dataset
-all_plays <- nflreadr::load_pbp(2020:2023)
-
-batted_passes <- batted_passes |> 
-  janitor::clean_names()
-
-excel_batted <- batted_passes
-
-excel_batted$is_batted <- 1
-excel_simple <- excel_batted |> 
-  select(week,year,  home_team = home, away_team = away, play_id, is_batted)
-all_plays <- left_join(all_plays, excel_simple)
-all_plays$is_batted <- all_plays$is_batted |> 
-  replace_na(0)
-qb_tend <- all_plays |> 
-  filter(play_type == "pass")
-
-qb_tend$pass_LL <- paste(qb_tend$pass_length, qb_tend$pass_location, sep=" ")
-
-qb_passes_2023_2 <- qb_tend |> 
-  filter(season == 2023) |>
-  select(passer_player_name, season, pass_LL, is_batted, air_yards) |> 
-  group_by(passer_player_name) |> 
-  filter(n()>100) 
-
-#plotting
-qb_passes_2023_2 |> 
-  group_by(passer_player_name) |> 
-  mutate(total_passes = n()) |>   
-  filter(pass_LL == "short left") |> 
-  mutate(total = n(), 
-         batted = sum(is_batted == "1")/total, 
-         total_passes = mean(total_passes)) |>
-  ggplot(aes(x = air_yards, y = batted , size = total_passes, color = as.factor(is_batted)), alpha = 0.1)  +
-  geom_point() + 
-  labs(
-    x = "Air Yards of each Pass", 
-    y = "Percentage of Short Left Batted", 
-    title = "Air Yards of Short Left Passes in 2023 season", 
-    size = "Total Passes in 2023 Season", 
-    color = "Batted"
-  ) +
-  theme_bw()
-```
 
 
 ## Methods
