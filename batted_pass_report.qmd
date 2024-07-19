@@ -97,7 +97,7 @@ library(readxl)
 #creating dataset
 player_data <- nflreadr::load_players()
 all_plays2023 <- nflreadr::load_pbp()
-batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
+batted_passes <- read_excel("2019-2023 Batted Passes.xlsx")
 excel_batted <- batted_passes
 excel_batted$is_batted <- 1
 excel_simple <- excel_batted |> 
@@ -147,7 +147,7 @@ library(readxl)
 #creating dataset
 player_data <- nflreadr::load_players()
 all_plays2023 <- nflreadr::load_pbp()
-batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
+batted_passes <- read_excel("2019-2023 Batted Passes.xlsx")
 excel_batted <- batted_passes
 excel_batted$is_batted <- 1
 excel_simple <- excel_batted |> 
@@ -197,7 +197,7 @@ library(readxl)
 #creating dataset
 player_data <- nflreadr::load_players()
 all_plays2023 <- nflreadr::load_pbp()
-batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
+batted_passes <- read_excel("2019-2023 Batted Passes.xlsx")
 excel_batted <- batted_passes
 excel_batted$is_batted <- 1
 excel_simple <- excel_batted |> 
