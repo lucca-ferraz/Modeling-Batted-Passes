@@ -154,9 +154,10 @@ pass_by_qb |>
   labs(
     title = "Density plot of batted and non-batted passes by QB height", 
     x = "QB Height (inches)", 
-    y = "density", 
+    y = "Density", 
     color = "Batted"
-  ) 
+  ) + 
+  theme_bw()
 ```
 
 ```{r column names of pass plays 2023}
