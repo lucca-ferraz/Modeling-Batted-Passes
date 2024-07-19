@@ -21,14 +21,10 @@ execute:
 
 ## Introduction 
 
-#Describe the problem and why it is important.
-
 Batted passes occur when a quarterback throws the ball and a defender hits it down, typically around the line of scrimmage. Batted passes usually result in an incomplete pass and a loss of down which does not advance the ball and hurts the offensive team's chance of scoring. In this project, we attempted to isolate the factors that go into causing batted passes so that coaches and teams can lower the number of their passes that get batted and increase the number of passes they bat down. 
 
 
 ## Data
-
-#Describe the data you’re using in detail, where you accessed it, along with relevant exploratory data analysis (EDA). You should also include descriptions of any major data pre-processing/cleaning steps.
 
 Throughout this project, we used data from the nflverse package, specifically player and play by play data. We were also provided data by For The Number (FTN) which proved to be an invaluable resource as the nflverse data does not indicate if a pass was batted. The FTN data also contained detailed formation level data from the 2022 and 2023 seasons. By combining the data from both sources, we were able to get a detailed picture of what happened in every play of every game. We decided to focus on the two most recent NFL seasons, 2022 and 2023, for the majority of our analysis. 
 
@@ -36,14 +32,14 @@ One of our biggest data cleaning steps was making sure each team's initials were
 
 We began exploring the data by creating visualizations displaying quarterback height and the count and percentage of batted passes they have thrown. From our initial exploration, all of our graphics showed that height does not have a significant impact on if a pass gets batted down. 
 
-```{r}
+```{r qb height}
 #| fig-width: 5
 #| fig-height: 3.5
 #| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
 
 library(tidyverse)
 library(readxl)
-install.packages("ggthemes")
+# install.packages("ggthemes")
 library(ggthemes)
 
 #creating dataset
@@ -88,57 +84,62 @@ pass_by_qb |>
 
 The next aspect we explored was the location and length of the pass. Short passes are significantly more likely to be batted down than deep passes. Similarly, passes thrown towards the middle of the field are slightly more likely to be batted when compared to passes thrown to the left or right sides of the field.
 
-```{r}
+```{r pass location}
 #| fig-width: 5
 #| fig-height: 3.5
 #| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
 
 library(tidyverse)
 library(readxl)
+library(nflverse)
 
-#creating dataset
-player_data <- nflreadr::load_players()
-all_plays2023 <- nflreadr::load_pbp()
-batted_passes <- read_excel("2019-2023 Batted Passes.xlsx")
-excel_batted <- batted_passes
+# creating dataset
+excel_batted <- read_excel("2019-2023 Batted Passes.xlsx")
+
 excel_batted$is_batted <- 1
+
 excel_simple <- excel_batted |> 
   mutate(across(c("HOME", "AWAY"), ~ str_replace(
     string = .x, pattern = "LAR", replacement = "LA"))) |> 
   select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
 
-all_plays2023 <- left_join(all_plays2023, excel_simple)
-all_plays2023$is_batted <- all_plays2023$is_batted |> 
-  replace_na(0)
-pass_plays2023 <- all_plays2023 |> 
+pass_plays20192023 <- load_pbp(seasons = c(2019, 2020, 2021, 2022, 2023)) |> 
   filter(play_type == "pass")
-sum(pass_plays2023$is_batted)
+pass_plays20192023 <- left_join(pass_plays20192023, excel_simple)
+pass_plays20192023$is_batted <- pass_plays20192023$is_batted |> 
+  replace_na(0)
 
-pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
+all_players <- nflreadr::load_players()
+active_qbs <- all_players |> 
+  filter(status == "ACT" & position == "QB")
+qbs <- all_players |> 
+  filter(position == "QB")
+qb_heights <- qbs |> 
+  select(passer_player_id = gsis_id, height)
+
+pass_plays20192023 <- pass_plays20192023 |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  rename(qb_height = height)
 
 #plotting
-pass_by_qb <- pass_by_qb |> 
-  group_by(passer_player_name) |>   
-  mutate(total_passes = n(), 
-            total_batted_passes = sum(is_batted), 
-            qb_height = mean(height)) |> 
-  filter(total_passes>100)
-pass_by_qb |> 
-  ggplot(aes(x = qb_height, color = factor(is_batted))) +
-  geom_density() +
-  theme(legend.position = "bottom") + 
-  labs(
-    title = "Density plot of passes by QB height", 
-    x = "QB Height (inches)", 
-    y = "Density", 
-    color = "Batted"
-  ) + 
-  theme_bw()
+pass_plays20192023 |> 
+  filter(!is.na(pass_location)) |> 
+  group_by(pass_location) |> 
+  summarise(attempts = n(), batted_passes = sum(is_batted), 
+            bat_pct = batted_passes / attempts) |> 
+  ggplot() +
+  geom_col(aes(x = pass_location, y = bat_pct), fill = "#69b3a2") +
+  #geom_col(aes(x = pass_location, y = batted_passes), fill = "red") +
+  geom_label(aes(x = pass_location, y = bat_pct, label = round(bat_pct, 4))) +
+  labs(x = "Intended Pass Location", y = "Batted Pass Percentage", 
+       title = "Batted Balls by Intended Pass Location", 
+       caption = "Data from 2019-2023 NFL Seasons") +
+  ggthemes::theme_clean()
 ```
 
 Another offensive characteristic available to us was the quarterback location at the start of the play, shotgun, pistol or under center. There was no clear indication of one formation creating more batted passes than another. We also knew how many offensive backfielders there were on the field during each play and our graphs showed that more offensive backfielders lead to less batted passes. 
 
-```{r}
+```{r offensive backfielders}
 #| fig-width: 5
 #| fig-height: 3.5
 #| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
@@ -157,38 +158,46 @@ excel_simple <- excel_batted |>
     string = .x, pattern = "LAR", replacement = "LA"))) |> 
   select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
 
-all_plays2023 <- left_join(all_plays2023, excel_simple)
-all_plays2023$is_batted <- all_plays2023$is_batted |> 
-  replace_na(0)
-pass_plays2023 <- all_plays2023 |> 
+ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
+ftn_charting_clean <- ftn_charting |> 
+  select(game_id = nflverse_game_id, play_id = nflverse_play_id, 
+         starting_hash:n_pass_rushers, -is_qb_sneak)
+pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
   filter(play_type == "pass")
-sum(pass_plays2023$is_batted)
+pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
 
-pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
+merged_ftn <- pass_plays20222023 |> 
+  select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
+         pass_defense_1_player_name, is_batted) |> 
+  left_join(ftn_charting_clean) |> 
+  select(-qb_kneel, -qb_spike) |> 
+  mutate(game_date = as.Date(game_date),
+         year = substr(old_game_id, 1, 4),
+         season = ifelse(game_date < as.Date("2023-02-13"), 2022, 2023))
+merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
 
 #plotting
-pass_by_qb <- pass_by_qb |> 
-  group_by(passer_player_name) |>   
-  mutate(total_passes = n(), 
-            total_batted_passes = sum(is_batted), 
-            qb_height = mean(height)) |> 
-  filter(total_passes>100)
-pass_by_qb |> 
-  ggplot(aes(x = qb_height, color = factor(is_batted))) +
-  geom_density() +
-  theme(legend.position = "bottom") + 
-  labs(
-    title = "Density plot of passes by QB height", 
-    x = "QB Height (inches)", 
-    y = "Density", 
-    color = "Batted"
-  ) + 
-  theme_bw()
+merged_ftn |> 
+  group_by(qb_location, season) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted),
+            bat_pct = batted_balls / plays) |> 
+  filter(qb_location %in% c("P", "S", "U")) |> 
+  ggplot(aes(x = qb_location, y = bat_pct)) +
+  geom_col(aes(fill = qb_location)) +
+  ggthemes::theme_clean() + 
+  ggthemes::scale_fill_fivethirtyeight(guide = "none") +
+  geom_label(aes(label = round(bat_pct, 3))) +
+  labs(x = "QB Location", y = "Batted Pass Percentage", 
+       title = "Percentage of Batted Passes by QB Location", 
+       subtitle = "Sorted by Season", 
+       caption = "Data from FTN Charting via nflreadR") +
+  scale_x_discrete(labels = c("Pistol", "Shotgun", "Under Center")) +
+  facet_wrap(~ season)
 ```
 
 We then looked at defensive characteristics to see if they contribute to batted passes. With the FTN data, we were able to see how many pass rushers there were in each pass play. Charting these, we saw that more pass rushers correlated with more batted passes.
 
-```{r}
+```{r pass rushers}
 #| fig-width: 5
 #| fig-height: 3.5
 #| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
@@ -207,33 +216,38 @@ excel_simple <- excel_batted |>
     string = .x, pattern = "LAR", replacement = "LA"))) |> 
   select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
 
-all_plays2023 <- left_join(all_plays2023, excel_simple)
-all_plays2023$is_batted <- all_plays2023$is_batted |> 
-  replace_na(0)
-pass_plays2023 <- all_plays2023 |> 
+ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
+ftn_charting_clean <- ftn_charting |> 
+  select(game_id = nflverse_game_id, play_id = nflverse_play_id, 
+         starting_hash:n_pass_rushers, -is_qb_sneak)
+pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
   filter(play_type == "pass")
-sum(pass_plays2023$is_batted)
+pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
 
-pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
+merged_ftn <- pass_plays20222023 |> 
+  select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
+         pass_defense_1_player_name, is_batted) |> 
+  left_join(ftn_charting_clean) |> 
+  select(-qb_kneel, -qb_spike) |> 
+  mutate(game_date = as.Date(game_date),
+         year = substr(old_game_id, 1, 4),
+         season = ifelse(game_date < as.Date("2023-02-13"), 2022, 2023))
+merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
 
 #plotting
-pass_by_qb <- pass_by_qb |> 
-  group_by(passer_player_name) |>   
-  mutate(total_passes = n(), 
-            total_batted_passes = sum(is_batted), 
-            qb_height = mean(height)) |> 
-  filter(total_passes>100)
-pass_by_qb |> 
-  ggplot(aes(x = qb_height, color = factor(is_batted))) +
-  geom_density() +
-  theme(legend.position = "bottom") + 
-  labs(
-    title = "Density plot of passes by QB height", 
-    x = "QB Height (inches)", 
-    y = "Density", 
-    color = "Batted"
-  ) + 
-  theme_bw()
+merged_ftn |> 
+  group_by(n_pass_rushers) |> 
+  filter(!is.na(n_pass_rushers)) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted), 
+            bat_pct = batted_balls / plays) |> 
+  filter(plays > 200) |> 
+  ggplot(aes(x = n_pass_rushers, y = bat_pct)) +
+  geom_col(aes(fill = bat_pct)) + 
+  ggthemes::theme_clean() + 
+  ggthemes::scale_fill_continuous_tableau() +
+  labs(x = "Number of Pass Rushers", y = "Percent of Passes Batted", 
+       title = "More Pass Rushers Leads to More Passes Batted",
+       caption = "Data from FTN Charting via nflreadR")
 ```
 Through the nflverse data, we were able to see the air yards of each pass. Modeling showed that batted passes strongly align with lower air yard values, which makes sense as low air yards is more of a consequence of a batted pass rather than something that could cause it. Once we got to the modeling process, we cut out air yards from our models as it came out as the most important variable by far for every model.
 
