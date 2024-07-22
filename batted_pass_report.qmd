@@ -276,6 +276,11 @@ We plan to use the variance of the random effects (quarterback and defensive tea
 #Give your conclusions and summarize what you have learned with regards to your question of interest. Are there any limitations with the approaches you used? What do you think are the next steps to follow-up your project?
 
 
+Conclusions: The defensive team has more impact than the quarterback does; but, our 2023 model shows that as QB height increases, chances of a batted pass decrease. The same idea is true with the number of offensive backfielders and the opposite with pass rushers.
+
+Limitations: The model is built only using data from two years, which may not capture longer-term trends and variability in batted passes. Additionally, the absence of tracking data and detailed information on exact formations means that our understanding of the spatial dynamics and specific player configurations during batted pass events is limited.
+
+Future work: Incorporate tracking data to examine more closely where passes get batted and from what formations; bring in participation data to see what players are on the field when passes are batted.
 
 
 
