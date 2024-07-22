@@ -87,7 +87,7 @@ The next aspect we explored was the location and length of the pass. Short passe
 ```{r pass location}
 #| fig-width: 5
 #| fig-height: 3.5
-#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
+#| fig-cap: "This graph shows the overall percentage of passes that are batted for each direction (right, left, middle). Middle passes are most likely to be batted with left and right having very similar, lower percentages."
 
 library(tidyverse)
 library(readxl)
@@ -139,10 +139,10 @@ pass_plays20192023 |>
 
 Another offensive characteristic available to us was the quarterback location at the start of the play, shotgun, pistol or under center. There was no clear indication of one formation creating more batted passes than another. We also knew how many offensive backfielders there were on the field during each play and our graphs showed that more offensive backfielders lead to less batted passes. 
 
-```{r offensive backfielders}
+```{r qb starting location and offensive backfielders}
 #| fig-width: 5
 #| fig-height: 3.5
-#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
+#| fig-cap: "This graph shows the overall percentage of passes that are batted for each quarterback starting position, under center, pistol and shotgun. Under center plays were the least likely to be batted both years but shotgun and pistol switched being most and second most likely from 2022 to 2023."
 
 library(tidyverse)
 library(readxl)
@@ -200,7 +200,7 @@ We then looked at defensive characteristics to see if they contribute to batted 
 ```{r pass rushers}
 #| fig-width: 5
 #| fig-height: 3.5
-#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
+#| fig-cap: "This graph shows the overall percentage of passes that are batted for each number of pass rushers in the play. The percentage of batted passes increases with every pass rusher the defensive team adds."
 
 library(tidyverse)
 library(readxl)
@@ -255,25 +255,46 @@ Through the nflverse data, we were able to see the air yards of each pass. Model
 
 ## Methods
 
-#Describe the modeling techniques you chose, their assumptions, justifications for why they are appropriate for the problem, and your plan for comparison/evaluation approaches.
-
 Because we have quarterbacks throwing multiple passes, each pass one quarterback throws is not independent from their other passes. That quarterback will have their own randomness they bring to the table based on their individual playing style. The same idea applies to each teams' defensive lineup, a pass batted by one team is not independent of the same team not batting another pass. To handle this, we used a multilevel logistic model, multilevel to handle the random effects from having the same quarterback throwing multiple passes and the same defense defending against multiple passes, and logistic because our response variable, is the pass batted or not, is indicated by a binary variable. 
 
-After deciding on the random effects variables, we began choosing fixed effects variables. We chose to use many of the variables we conducted exploratory data analysis on, including quarterback height, pass location, quarterback location, number of pass rushers, number of offensive backfielders and **several others**. 
+After deciding on the random effects variables, we began choosing fixed effects variables. We chose to use many of the variables we conducted exploratory data analysis on, including quarterback height, pass location, quarterback starting location, number of pass rushers, and number of offensive backfielders. 
 
-We plan to use the variance of the random effects (quarterback and defensive team) to determine which has a bigger effect on causing batted passes. We will use the odd ratios of our fixed effect variables to determine what impact, if any, each variable has. An odds ratio of greater than 1, indicates that as that variable increases, the chances of a pass being batted increases. The opposite is true for odds ratios of less than 1, the more that variable increases, the less likely a pass is to be batted. An odds ratio of 1 suggests there is no relationship between the variable and a pass being batted. 
+We plan to use the variance of the random effects (quarterback and defensive team) to determine which has a bigger effect on causing batted passes. We will use the logs odd ratios of our fixed effect variables to determine what impact, if any, each variable has. A log odds ratio of greater than 0, indicates that as that variable increases, the chances of a pass being batted increases. The opposite is true for log odds ratios of less than 10 the more that variable increases, the less likely a pass is to be batted. A log odds ratio of 0 suggests there is no relationship between the variable and a pass being batted. 
 
 
 ## Results
 
 #Describe your results. This can include tables and plots showing your results, as well as text describing how your models worked and the appropriate interpretations of the relevant output. (Note: Don’t just write out the textbook interpretations of all model coefficients! Instead, interpret the output that is relevant for your question of interest that is framed in the introduction)
 
+```{r model coefficient plot?}
+#| fig-width: 5
+#| fig-height: 3.5
+#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
 
+library(tidyverse)
+library(readxl)
+
+```
+
+
+```{r qb/def team variance model?}
+#| fig-width: 5
+#| fig-height: 3.5
+#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
+
+library(tidyverse)
+library(readxl)
+```
 
 
 ## Discussion
 
-#Give your conclusions and summarize what you have learned with regards to your question of interest. Are there any limitations with the approaches you used? What do you think are the next steps to follow-up your project?
+Our goal for this project was to determine what factors have the biggest impacts on if a pass is batted or not. The low variance of the quarterback throwing the ball shows that quarterbacks have much less impact on batted passes when compared to the defensive team they are against. Some defensive team created many more batted passes than others which the high variance our model found supports. 
+We also found that play dependent factors such as number of pass rushers or number of offensive backfielders had nonzero estimates, meaning they do affect the chances of a batted pass. More pass rushers slightly increases the chances of a batted pass. Having more offensive backfielders decreases the chance of a batted pass with more impact than the number of pass rushers. Passing towards the middle significantly increases the probability of the pass being batted. Although our initial data exploration showed that height did not impact batted passes, our 2023 season model showed that height has a log odds ratio below 0, which implies that the taller a quarterback is, the less likely they are to throw batted passes. Our 2022 model has a log odds ratio of less than 0 but the confidence interval includes 0 so we cannot conclude anything from that model. 
+
+A large part of our model included variables that came from the FTN charting data such as numbers of pass rushers and offensive backfielders for each play. Because this data is only available for the 2022 and 2023 seasons, we were only able to create models for those two years. This limits our ability to inspect long term trends and draw conclusions on anything more than a year to year basis. We also had limited tracking data available to us and limited time so we decided not to include tracking at this moment. 
+
+Next steps for this project include bringing in the publicly available tracking data from the 2024 NFL Big Data Bowl and StatsBomb. We would also add data from the load participation package from nflverse which would give us a list of players on the field for each play. This would allow us to look deeper into what impact individual defensive players have. 
 
 
 
@@ -285,30 +306,6 @@ We plan to use the variance of the random effects (quarterback and defensive tea
 
 
 
-
-
-
-
-## Appendix: A quick tutorial
-
-**(Feel free to remove this section when you submit)**
-
-This a Quarto document. 
-To learn more about Quarto see <https://quarto.org>.
-You can use the Render button to see what it looks like in HTML.
-
-### Text formatting
-
-Text can be bolded with **double asterisks** and italicized with *single asterisks*. 
-Monospace text, such as for short code snippets, uses `backticks`.
-(Note these are different from quotation marks or apostrophes.) Links are
-written [like this](http://example.com/).
-
-Bulleted lists can be written with asterisks:
-
-* Each item starts on a new line with an asterisk.
-* Items should start on the beginning of the line.
-* Leave blank lines after the end of the list so the list does not continue.
 
 Mathematics can be written with LaTeX syntax using dollar signs. 
 For instance, using single dollar signs we can write inline math: $(-b \pm \sqrt{b^2 - 4ac})/2a$.
@@ -319,45 +316,6 @@ $$
 x^2 + y^2 = 1
 $$
 
-
-### Code blocks
-
-Code blocks are evaluated sequentially when you hit Render. 
-As the code runs, `R` prints out which block is running, so naming blocks is useful if you want to know which one takes a long time. 
-After the block name, you can specify [chunk options](https://yihui.org/knitr/options/). 
-For example, `echo` controls whether the code is printed in the document. 
-By default, output is printed in the document in monospace:
-
-```{r, echo = FALSE}
-head(mtcars)
-```
-
-Chunk options can also be written inside the code block, which is helpful for really long options, as we'll see soon.
-
-```{r}
-#| echo: false
-head(mtcars)
-```
-
-### Figures
-
-If a code block produces a plot or figure, this figure will automatically be inserted inline in the report. That is, it will be inserted exactly where the code block is.
-
-```{r}
-#| fig-width: 5
-#| fig-height: 3.5
-#| fig-cap: "This is a caption. It should explain what's in the figure and what's interesting about it. For instance: There is a negative, strong linear correlation between miles per gallon and horsepower for US cars in the 1970s."
-
-library(tidyverse)
-mtcars |> 
-  ggplot(aes(x = mpg, y = hp)) +
-  geom_point() +
-  labs(x = "Miles per gallon",
-       y = "Horsepower")
-```
-
-Notice the use of `fig-width` and `fig-height` to control the figure's size (in inches). 
-These control the sizes given to `R` when it generates the plot, so `R` proportionally adjusts the font sizes to be large enough.
 
 ### Tables
 
