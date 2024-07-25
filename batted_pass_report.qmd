@@ -21,12 +21,12 @@ execute:
 
 ## Introduction 
 
-Batted passes occur when a quarterback throws the ball and a defender hits it down, typically around the line of scrimmage. Batted passes usually result in an incomplete pass and a loss of down which does not advance the ball and hurts the offensive team's chance of scoring. In this project, we attempted to isolate the factors that go into causing batted passes so that coaches and teams can lower the number of their passes that get batted and increase the number of passes they bat down. 
+Batted passes occur when a quarterback throws the ball and a defender hits it down, typically around the line of scrimmage. Batted passes usually result in an incomplete pass and a loss of down which does not advance the ball and hurts the offensive team's chance of scoring. In this project, we attempted to isolate the factors that go into causing batted passes so that coaches and teams can lower the number of their passes that get batted and increase the number of passes they bat down. Oftentimes shorter quarterback prospects are dismissed due to the notion that they "cannot see over the defense" and that their passes will get batted down more often than taller quarterbacks. Another main focus for this project was determining whether quarterback height actually matters in explaining batted passes or if this is simply an example of unfounded bias against short QBs.
 
 
 ## Data
 
-Throughout this project, we used data from the nflverse package, specifically player and play by play data. We were also provided data by For The Number (FTN) which proved to be an invaluable resource as the nflverse data does not indicate if a pass was batted. The FTN data also contained detailed formation level data from the 2022 and 2023 seasons. By combining the data from both sources, we were able to get a detailed picture of what happened in every play of every game. We decided to focus on the two most recent NFL seasons, 2022 and 2023, for the majority of our analysis. 
+Throughout this project, we used data from the nflverse package, specifically player and play by play data. We were also provided data by For The Numbers (FTN) which proved to be an invaluable resource as the nflverse data does not indicate if a pass was batted. The FTN data also contained detailed formation level data from the 2022 and 2023 seasons. By combining the data from both sources, we were able to get a detailed picture of what happened in every play of every game. We decided to focus on the two most recent NFL seasons, 2022 and 2023, for the majority of our analysis. 
 
 One of our biggest data cleaning steps was making sure each team's initials were done the same in the FTN and nflverse datasets. Only one team was different, the Los Angeles Rams were shortened to "LA" in one dataset and "LAR" in the other. Also before merging datasets, we created a column in the FTN data to indicate with a 1 that every pass was batted and after merging, assigned each N/A value to be 0, indicating the pass was not batted. We also had to assign what season every game was in as the data currently only included the date of the game. We merged in two separate nflverse datasets, one for the play by play data and one for player data from which we were able to get quarterback heights. After merging all the cleaned datasets, we filtered out all events that were not passes. 
 
@@ -139,7 +139,7 @@ pass_plays20192023 |>
 
 Another offensive characteristic available to us was the quarterback location at the start of the play, shotgun, pistol or under center. There was no clear indication of one formation creating more batted passes than another. We also knew how many offensive backfielders there were on the field during each play and our graphs showed that more offensive backfielders lead to less batted passes. 
 
-```{r qb starting location and offensive backfielders}
+```{r qb starting location}
 #| fig-width: 5
 #| fig-height: 3.5
 #| fig-cap: "This graph shows the overall percentage of passes that are batted for each quarterback starting position, under center, pistol and shotgun. Under center plays were the least likely to be batted both years but shotgun and pistol switched being most and second most likely from 2022 to 2023."
@@ -195,11 +195,26 @@ merged_ftn |>
   facet_wrap(~ season)
 ```
 
+```{r offensive backfielders}
+merged_ftn |> 
+  filter(!is.na(n_offense_backfield)) |> 
+  group_by(n_offense_backfield) |> 
+  summarise(plays = n(), batted_balls = sum(is_batted), bat_pct = batted_balls / plays) |> 
+  filter(plays > 150) |> 
+  ggplot(aes(n_offense_backfield, bat_pct)) + 
+  geom_col(fill = "#69b3a2") +
+  geom_label(aes(label = round(bat_pct, 3))) +
+  ggthemes::theme_clean() +
+  labs(x = "Number of Players in the Offensive Backfield", y = "Batted Pass Percentage",
+       title = "More Players in the Backfield Leads to Less Batted Passes",
+       caption = "Data from FTN Charting via nflreadR") +
+  theme(axis.title.x = element_text(face = "bold"), 
+        axis.title.y = element_text(face = "bold")) 
+```
+
 We then looked at defensive characteristics to see if they contribute to batted passes. With the FTN data, we were able to see how many pass rushers there were in each pass play. Charting these, we saw that more pass rushers correlated with more batted passes.
 
 ```{r pass rushers}
-#| fig-width: 5
-#| fig-height: 3.5
 #| fig-cap: "This graph shows the overall percentage of passes that are batted for each number of pass rushers in the play. The percentage of batted passes increases with every pass rusher the defensive team adds."
 
 library(tidyverse)
@@ -242,9 +257,8 @@ merged_ftn |>
             bat_pct = batted_balls / plays) |> 
   filter(plays > 200) |> 
   ggplot(aes(x = n_pass_rushers, y = bat_pct)) +
-  geom_col(aes(fill = bat_pct)) + 
+  geom_col(fill = "dodgerblue2") + 
   ggthemes::theme_clean() + 
-  ggthemes::scale_fill_continuous_tableau() +
   labs(x = "Number of Pass Rushers", y = "Percent of Passes Batted", 
        title = "More Pass Rushers Leads to More Passes Batted",
        caption = "Data from FTN Charting via nflreadR")
@@ -270,10 +284,66 @@ We plan to use the variance of the random effects (quarterback and defensive tea
 ```{r model coefficient plot?}
 #| fig-width: 5
 #| fig-height: 3.5
-#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
+#| fig-cap: "Log Odds Interval Plot of Fixed Effects by Season: 
+#| - >0 : more likely to create a batted pass 
+#| - =0 : no conclusive impact 
+#| - <0 : less likely to create a batted pass"
 
 library(tidyverse)
 library(readxl)
+library(lme4)
+
+merged_ftn <- merged_ftn |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  rename(qb_height = height)
+
+merged_ftn2023 <- merged_ftn |> 
+  filter(season == 2023) |> 
+  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
+merged_ftn2022 <- merged_ftn |> 
+  filter(season == 2022) |> 
+  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
+
+full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2023)
+
+full_model2022 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2022)
+
+library(broom.mixed)
+#install.packages("dotwhisker")
+library(dotwhisker)
+tidy_model23 <- tidy(full_model2023) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2023) 
+
+tidy_model22 <- tidy(full_model2022) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2022)
+
+bind_rows(tidy_model23, tidy_model22) |> 
+  filter(!is.na(std.error) & !is.na(estimate)) |> 
+  relabel_predictors(qb_height = "QB Height", pass_locationmiddle = "Pass Middle",
+                     pass_locationright = "Pass Right", qb_locationS = "Shotgun", 
+                     qb_locationU = "Under Center", 
+                     n_offense_backfield = "# of Players in Off. Backfield",
+                     is_play_actionTRUE = "Play-Action Pass", is_rpoTRUE = "Run-Pass Option",
+                     is_qb_out_of_pocketTRUE = "QB Outside of Pocket", 
+                     n_pass_rushers = "# of Pass Rushers",
+                     qb_locationP = "Pistol") |> 
+  dwplot(ci = 0.68, vline = geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5),
+         dot_args = list(size = 3), whisker_args = list(size = .6)) +
+    aes(alpha = !(std.error >= abs(estimate))) +
+    scale_alpha_manual(breaks = c(FALSE, TRUE), values = c(0.25, 1), guide = "none"
+                       ) +
+    ggthemes::scale_color_fivethirtyeight() +
+    theme_bw() + 
+    labs(color = "Model", alpha = "") +
+  theme(legend.position = "bottom")
 
 ```
 
@@ -285,6 +355,47 @@ library(readxl)
 
 library(tidyverse)
 library(readxl)
+
+tidy_coef22 <- tidy(full_model2022, effects = "ran_vals") |> 
+  mutate(season = 2022)
+
+tidy_coef23 <- tidy(full_model2023, effects = "ran_vals") |> 
+  mutate(season = 2023)
+
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "defteam") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  ) |> 
+  ggplot(aes(estimate_2022, estimate_2023)) +
+  geom_nfl_logos(aes(team_abbr = level), width = 0.075, height = 0.1, alpha = 0.7) +
+  ggthemes::theme_clean() +
+  labs(title = "Defensive Team Coefficients for 2022 and 2023", 
+       subtitle = "Higher estimates correspond to more batted passes",
+       x = "2022 Estimate", y = "2023 Estimate") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", alpha = 0.7)
+
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "passer_name_id") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  ) |> 
+  mutate(gsis_id = word(level, 2),
+         name = word(level, 1)) |> 
+  ggplot(aes(estimate_2022, estimate_2023)) +
+  #geom_nfl_headshots(aes(player_gsis = gsis_id), height = 0.2, width = 0.1, alpha = 0.5) +
+  geom_point(color = "blue4") +
+  ggthemes::theme_clean() +
+  labs(title = "QB Coefficients for 2022 and 2023", 
+       subtitle = "Higher estimates correspond to more batted passes",
+       x = "2022 Estimate", y = "2023 Estimate") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", alpha = 0.7)
 ```
 
 
