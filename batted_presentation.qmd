@@ -43,10 +43,11 @@ editor: visual
 jjs
 
 # Discussion {.smaller}
+
 -   Overall defensive characteristics determine more of the variance of batted passes
 -   More Batted Passes?
-    - More Pass Rushers
-    - Middle Passes
+    -   More Pass Rushers
+    -   Middle Passes
 -   Less Batted Passes?
-    - Taller QBs
-    - More Offensive Backfielders
+    -   Taller QBs
+    -   More Offensive Backfielders

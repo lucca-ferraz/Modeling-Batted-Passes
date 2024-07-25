@@ -226,9 +226,7 @@ merged_ftn |>
 
 
 ```{r offensive backfielders}
-<<<<<<< HEAD
 #| fig-cap: "This plot shows the percentage of batted balls in relation to the amount of players in the offense backfield. We can see that more backfielders leads to less batted passes."
-=======
 #| fig-width: 5
 #| fig-height: 3.5
 
@@ -266,7 +264,6 @@ merged_ftn <- pass_plays20222023 |>
 merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
 
 #plotting
->>>>>>> 83650f100d8beb792a44977792ce8f5c061d52ff
 merged_ftn |> 
   filter(!is.na(n_offense_backfield)) |> 
   group_by(n_offense_backfield) |> 
@@ -332,14 +329,7 @@ A log odds ratio of 0 suggests there is no relationship between the variable and
 
 # Fixed Effect Estimates
 
-<<<<<<< HEAD
 ```{r model coefficient plot}
-=======
-
-```{r model coefficient plot?}
->>>>>>> 83650f100d8beb792a44977792ce8f5c061d52ff
-#| fig-width: 5
-#| fig-height: 3.5
 #| fig-cap: "Log Odds Interval Plot of Fixed Effects by Season"
 
 library(tidyverse)
@@ -436,7 +426,6 @@ Both the defensive team and quarterback scatterplots show a moderate positive re
 
 ## Discussion
 
-<<<<<<< HEAD
 Our goal for this project was to determine what factors have the biggest impacts on if a pass is batted or not.
 The low variance of the quarterback throwing the ball shows that quarterbacks have much less impact on batted passes when compared to the defensive team they are against.
 Some defensive team created many more batted passes than others which the high variance our model found supports.
@@ -446,15 +435,13 @@ Having more offensive backfielders decreases the chance of a batted pass with mo
 Passing towards the middle significantly increases the probability of the pass being batted.
 Although our initial data exploration showed that height did not impact batted passes, our 2023 season model showed that height has a log odds ratio below 0, which implies that the taller a quarterback is, the less likely they are to throw batted passes.
 Our 2022 model has a log odds ratio of less than 0 but the confidence interval includes 0 so we cannot conclude anything from that model.
-=======
+
 Our goal for this project was to determine what factors have the biggest impacts on if a pass is batted or not. The low variance of the quarterback throwing the ball shows that quarterbacks have much less impact on batted passes when compared to the defensive team they are against. Some defensive team created many more batted passes than others which the high variance our model found supports. 
 We also found that play dependent factors such as number of pass rushers or number of offensive backfielders had nonzero estimates, meaning they do affect the chances of a batted pass. More pass rushers slightly increases the chances of a batted pass. Having more offensive backfielders decreases the chance of a batted pass and had more impact than the number of pass rushers. Passing towards the middle significantly increases the probability of the pass being batted. Although our initial data exploration showed that height did not impact batted passes, our 2023 season model showed that height has a log odds ratio below 0, which implies that the taller a quarterback is, the less likely they are to throw batted passes. Our 2022 model has a log odds ratio of less than 0 but the confidence interval includes 0 so we cannot conclude anything from that model. 
 
 A large part of our model included variables that came from the FTN charting data such as numbers of pass rushers and offensive backfielders for each play. Because this data is only available for the 2022 and 2023 seasons, we were only able to create models for those two years. This limits our ability to inspect long term trends and draw conclusions on anything more than a year to year basis. We also had limited tracking data available to us and limited time so we decided not to include tracking at this moment. 
 
 Next steps for this project include bringing in the publicly available tracking data from the 2024 NFL Big Data Bowl and StatsBomb. We would also add data from the load participation package from nflverse which would give us a list of players on the field for each play. This would allow us to look deeper into what impact individual defensive players have. 
-
->>>>>>> 83650f100d8beb792a44977792ce8f5c061d52ff
 
 A large part of our model included variables that came from the FTN charting data such as numbers of pass rushers and offensive backfielders for each play.
 Because this data is only available for the 2022 and 2023 seasons, we were only able to create models for those two years.

@@ -72,10 +72,6 @@ pass_plays20192023 <- pass_plays20192023 |>
   left_join(qb_heights, by = join_by(passer_player_id)) |> 
   rename(qb_height = height)
 
-pass_plays2023 <- pass_plays2023 |> 
-  left_join(qb_heights, by = join_by(passer_player_id)) |> 
-  rename(qb_height = height)
-
 # EDA Plots ---------------------------------------------------------------
 
 pass_plays2023 |> 
@@ -706,7 +702,7 @@ passer_estimates <- bind_rows(tidy_coef22, tidy_coef23) |>
   arrange(desc(estimate))
 top_and_bottom_passers <- bind_rows(head(passer_estimates, 5), tail(passer_estimates, 5))
 
-gtplot <-top_and_bottom_passers |> 
+gtplot <- top_and_bottom_passers |> 
   gt() |> 
   tab_header(title = md("**Highest and Lowest QB Random Effect Estimates**"),
              subtitle = md("*Higher estimates correspond to more batted passes*")) |> 
@@ -752,8 +748,45 @@ merged_ftn |>
   knitr::kable() |> 
   kable_classic()
 
-summary(full_model2023)
-summary(full_model2022)
+passer_estimates22 <- passer_estimates |> 
+  filter(season == 2022) |> 
+  left_join(qb_heights, by = join_by(gsis_id == passer_player_id)) |> 
+  mutate(agg_effect = -3.772550 + estimate + (height*-0.004962)) |> 
+  arrange(agg_effect)
+
+top_and_bottom_passers22 <- bind_rows(head(passer_estimates22, 5), tail(passer_estimates22, 5))
+
+gtplot22 <- top_and_bottom_passers22 |> 
+  select(-estimate, -height, -season) |> 
+  gt() |> 
+  tab_header(title = md("**Highest and Lowest QB Estimates in 2022**"),
+             subtitle = md("*Higher estimates correspond to more batted passes*")) |> 
+  gt_nfl_headshots("gsis_id", height = 40) |> 
+  cols_align(align = "center", columns = name) |> 
+  cols_align(align = "left", columns = gsis_id) |> 
+  cols_label(name = "Quarterback", gsis_id = "", agg_effect = "Estimate") |> 
+  data_color(columns = agg_effect, palette = "RdYlGn", reverse = TRUE) |> 
+  gtExtras::gt_theme_538()
+
+passer_estimates23 <- passer_estimates |> 
+  filter(season == 2023) |> 
+  left_join(qb_heights, by = join_by(gsis_id == passer_player_id)) |> 
+  mutate(agg_effect = 2.74063 + estimate + (height*-0.07712)) |> 
+  arrange(agg_effect)
+
+top_and_bottom_passers23 <- bind_rows(head(passer_estimates23, 5), tail(passer_estimates23, 5))
+
+gtplot23 <- top_and_bottom_passers23 |> 
+  select(-estimate, -height, -season) |> 
+  gt() |> 
+  tab_header(title = md("**Highest and Lowest QB Estimates in 2023**"),
+             subtitle = md("*Higher estimates correspond to more batted passes*")) |> 
+  gt_nfl_headshots("gsis_id", height = 40) |> 
+  cols_align(align = "center", columns = name) |> 
+  cols_align(align = "left", columns = gsis_id) |> 
+  cols_label(name = "Quarterback", gsis_id = "", agg_effect = "Estimate") |> 
+  data_color(columns = agg_effect, palette = "RdYlGn", reverse = TRUE) |> 
+  gtExtras::gt_theme_538()
 
 passer_estimates |> 
   left_join(qb_heights, by = join_by(gsis_id == passer_player_id)) |> 
