@@ -4,13 +4,12 @@ author: "Lucca Ferraz, Maggie Byers, Yixin (Amelia) Yuan"
 format: 
   revealjs: 
     theme: sky
-    footer: "Footer text"
     slide-number: true
     chalkboard: true
 editor: visual
 ---
 
-# Intro
+# Intro {.smaller}
 
 -   Exploring the factors that go into causing batted passes
     -   Batted pass: defender hits the ball down shortly after QB releases it
@@ -22,7 +21,7 @@ editor: visual
     -   Pass type
     -   Overall related more to defense or offense
 
-# Data
+# Data {.smaller}
 
 -   Data from nflreadr
     -   Play by play data 2016 through 2023
@@ -32,14 +31,22 @@ editor: visual
     -   Included tipped and batted passes from 2019 - 2023 seasons
     -   Detailed formation information from 2022 and 2023 seasons
 
-# Methods
+# Methods {.smaller}
 
 -   Focused on explaining variance, not predicting batted passes
 -   Multilevel Logistic Model
     -   Random effects - quarterback, defensive team
     -   Fixed effects - QB height, pass location, number of players in backfield, pass rushers
 
-# Results
+# Results {.smaller}
+
 jjs
 
-# Discussion
+# Discussion {.smaller}
+-   Overall defensive characteristics determine more of the variance of batted passes
+-   More Batted Passes?
+    - More Pass Rushers
+    - Middle Passes
+-   Less Batted Passes?
+    - Taller QBs
+    - More Offensive Backfielders
