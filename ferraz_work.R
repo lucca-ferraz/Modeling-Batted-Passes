@@ -755,4 +755,10 @@ merged_ftn |>
 summary(full_model2023)
 summary(full_model2022)
 
+passer_estimates |> 
+  left_join(qb_heights, by = join_by(gsis_id == passer_player_id)) |> 
+  mutate(aggregate_effect = ifelse(season == 2022, -3.772550 + estimate + (height*-0.004962), 
+                                   2.74063 + estimate + (height*-0.07712))) |> 
+  #filter(season == 2023) |> 
+  arrange(-aggregate_effect)
 
