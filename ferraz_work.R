@@ -172,7 +172,7 @@ pass_plays20192023 |>
   summarise(attempts = n(), batted_passes = sum(is_batted), 
             bat_pct = batted_passes / attempts) |> 
   ggplot() +
-  geom_col(aes(x = pass_location, y = bat_pct), fill = "#69b3a2") +
+  geom_col(aes(x = pass_location, y = bat_pct), fill = "#6C3483") +
   #geom_col(aes(x = pass_location, y = batted_passes), fill = "red") +
   geom_label(aes(x = pass_location, y = bat_pct, label = round(bat_pct, 4))) +
   labs(x = "Intended Pass Location", y = "Batted Pass Percentage", 
@@ -576,20 +576,23 @@ bind_rows(tidy_model23, tidy_model22) |>
   relabel_predictors(qb_height = "QB Height", pass_locationmiddle = "Pass Middle",
                      pass_locationright = "Pass Right", qb_locationS = "Shotgun", 
                      qb_locationU = "Under Center", 
-                     n_offense_backfield = "Number of Players in Off. Backfield",
+                     n_offense_backfield = "# of Players in Off. Backfield",
                      is_play_actionTRUE = "Play-Action Pass", is_rpoTRUE = "Run-Pass Option",
                      is_qb_out_of_pocketTRUE = "QB Outside of Pocket", 
-                     n_pass_rushers = "Number of Pass Rushers",
+                     n_pass_rushers = "# of Pass Rushers",
                      qb_locationP = "Pistol") |> 
   dwplot(ci = 0.68, vline = geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5),
          dot_args = list(size = 3), whisker_args = list(size = .6)) +
     aes(alpha = !(std.error >= abs(estimate))) +
-    scale_alpha_manual(breaks = c(FALSE, TRUE), values = c(0.25, 1), 
-                       labels = c("Contains zero", "Does not contain zero"),
+    scale_alpha_manual(breaks = c(FALSE, TRUE), values = c(0.25, 1), guide = "none"
                        ) +
     ggthemes::scale_color_fivethirtyeight() +
     theme_bw() + 
-    labs(color = "Model", alpha = "Interval contains zero") 
+    labs(color = "Model", alpha = "") +
+  theme(legend.position = "bottom")
+
+summary(full_model2022)
+summary(full_model2023)
 
 # Model Plots -------------------------------------------------------------
 tidy_coef22 <- tidy(full_model2022, effects = "ran_vals") |> 
@@ -657,4 +660,99 @@ ranef(full_model2023) |>
   nflplotR::geom_nfl_headshots(aes(player_gsis = gsis_id), height = 0.2, width = 0.1) +
   labs(title = "QBs With the Lowest Coefficients in 2023 (Less Batted Passes)",
        x = "Coefficient", y = "")
+
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "defteam") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  ) |> 
+  ggplot(aes(estimate_2022, estimate_2023)) +
+  geom_nfl_logos(aes(team_abbr = level), width = 0.075, height = 0.1, alpha = 0.7) +
+  ggthemes::theme_clean() +
+  labs(title = "Defensive Team Coefficients for 2022 and 2023", 
+       subtitle = "Higher estimates correspond to more batted passes",
+       x = "2022 Estimate", y = "2023 Estimate") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", alpha = 0.7)
+
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "passer_name_id") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  ) |> 
+  mutate(gsis_id = word(level, 2),
+         name = word(level, 1)) |> 
+  ggplot(aes(estimate_2022, estimate_2023)) +
+  #geom_nfl_headshots(aes(player_gsis = gsis_id), height = 0.2, width = 0.1, alpha = 0.5) +
+  geom_point(color = "blue4") +
+  ggthemes::theme_clean() +
+  labs(title = "QB Coefficients for 2022 and 2023", 
+       subtitle = "Higher estimates correspond to more batted passes",
+       x = "2022 Estimate", y = "2023 Estimate") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", alpha = 0.7)
+
+library(gt)
+# install.packages("gtExtras")
+passer_estimates <- bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "passer_name_id") |> 
+  mutate(gsis_id = word(level, 2),
+         name = word(level, 1)) |> 
+  select(name, gsis_id, season, estimate) |> 
+  arrange(desc(estimate))
+top_and_bottom_passers <- bind_rows(head(passer_estimates, 5), tail(passer_estimates, 5))
+
+gtplot <-top_and_bottom_passers |> 
+  gt() |> 
+  tab_header(title = md("**Highest and Lowest QB Random Effect Estimates**"),
+             subtitle = md("*Higher estimates correspond to more batted passes*")) |> 
+  gt_nfl_headshots("gsis_id", height = 40) |> 
+  cols_align(align = "center", columns = c(name, season)) |> 
+  cols_align(align = "left", columns = gsis_id) |> 
+  cols_label(name = "Quarterback", gsis_id = "", season = "Season", estimate = "Estimate") |> 
+  data_color(columns = estimate, palette = "RdYlGn", reverse = TRUE) |> 
+  gtExtras::gt_theme_538()
+
+gtsave(gtplot, filename = "best_and_worst_passers.png")
+
+
+passer_by_year <- bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "passer_name_id") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  )
+
+cor(passer_by_year$estimate_2022, passer_by_year$estimate_2023, use='complete.obs')
+
+def_by_year <- bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "defteam") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  )
+
+cor(def_by_year$estimate_2022, def_by_year$estimate_2023)
+
+# install.packages("kableExtra")
+library(kableExtra)
+merged_ftn |> 
+  select(passer_player_name, defteam, pass_location, qb_location,
+         n_offense_backfield, n_pass_rushers, qb_height, is_batted) |> 
+  slice_sample(n = 5) |> 
+  rename("QB" = passer_player_name, "Defense" = defteam, "Pass Location" = pass_location,
+         "Formation Type" = qb_location, "# of Off Players in Backfield" = n_offense_backfield,
+         "# of Pass Rushers" = n_pass_rushers, "QB Height" = qb_height, "Batted Pass" = is_batted) |> 
+  knitr::kable() |> 
+  kable_classic()
+
+summary(full_model2023)
+summary(full_model2022)
+
 
