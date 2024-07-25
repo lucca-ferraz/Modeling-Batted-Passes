@@ -1,0 +1,45 @@
+---
+title: "Examining Batted Passes in the NFL"
+author: "Lucca Ferraz, Maggie Byers, Yixin (Amelia) Yuan"
+format: 
+  revealjs: 
+    theme: sky
+    footer: "Footer text"
+    slide-number: true
+    chalkboard: true
+editor: visual
+---
+
+# Intro
+
+-   Exploring the factors that go into causing batted passes
+    -   Batted pass: defender hits the ball down shortly after QB releases it
+    -   Typically results in incomplete pass, no yards gained
+-   Initial characters
+    -   QB height
+    -   Offensive formation
+    -   Defense formation
+    -   Pass type
+    -   Overall related more to defense or offense
+
+# Data
+
+-   Data from nflreadr
+    -   Play by play data 2016 through 2023
+    -   Player info - QB height
+    -   Did not have information on which passes were batted
+-   For The Numbers (FTN)
+    -   Included tipped and batted passes from 2019 - 2023 seasons
+    -   Detailed formation information from 2022 and 2023 seasons
+
+# Methods
+
+-   Focused on explaining variance, not predicting batted passes
+-   Multilevel Logistic Model
+    -   Random effects - quarterback, defensive team
+    -   Fixed effects - QB height, pass location, number of players in backfield, pass rushers
+
+# Results
+jjs
+
+# Discussion
