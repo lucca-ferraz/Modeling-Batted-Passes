@@ -164,7 +164,8 @@ players_data |>
 qb_height <- players_data |>
   filter(position == "QB") |>
   select(gsis_id, height)
-
+qb_height
+# 771 rows
 defender_positions <- c("CB", "DT", "DE", "LB", "MLB", "OLB", "ILB", "FS", "SS", "SAF", "DB", "S", "NT", "DL")
 
 defender_data <- players_data[players_data$position %in% defender_positions, ]
@@ -241,8 +242,34 @@ combined_data <- rbind(batted_passes_data, batted_passes_data_include_complete)
 
 # Check the combined data structure
 str(combined_data)
-
+##########################################################################################
 library(ggplot2)
+print(unique(pbp_data$is_batted))
+pbp_data_qb_height <- pbp_data |>
+  filter(is_batted == 1) |>
+  left_join(qb_height, by = c("passer_player_id" = "gsis_id")) %>%
+  dplyr::rename(qb_height = height) 
+
+pbp_data_qb_height_all_passes <- pbp_data |>
+  left_join(qb_height, by = c("passer_player_id" = "gsis_id")) |>
+  dplyr::rename(qb_height = height)
+
+colnames(qb_height)
+pbp_data_qb_height$Dataset <- "Only Batted Passes"
+pbp_data_qb_height_all_passes$Dataset <- "All Passes"
+
+print(unique(pbp_data_qb_height$is_batted))
+pbp_data_qb_height$qb_height
+pbp_data_qb_height_all_passes$qb_height
+combined_data <- rbind(pbp_data_qb_height, pbp_data_qb_height_all_passes)
+
+# Filter out rows with non-finite qb_height
+combined_data <- combined_data %>%
+  filter(is.finite(qb_height))
+library(dplyr)
+
+print(unique(combined_data$Dataset))
+ 
 
 ggplot(combined_data, aes(x = qb_height, fill = Dataset)) +
   geom_histogram(position = "dodge", bins = 30, alpha = 0.7) +
@@ -256,6 +283,7 @@ ggplot(combined_data, aes(x = qb_height, fill = Dataset)) +
     plot.title = element_text(face = "bold")  # Making the title bold
   )
 
+##########################################################################################
 ggplot(combined_data, aes(x = qb_height)) +
   geom_histogram(fill = "steelblue", bins = 30, alpha = 0.7) +
   facet_wrap(~ Dataset) +
