@@ -1,0 +1,4 @@
+- source: batted_presentation.qmd
+  quarto-pub:
+    - id: 69a872da-3f0e-4db3-b32b-b48823330f7f
+      url: 'https://luccaferraz.quarto.pub/batted_presentation'
