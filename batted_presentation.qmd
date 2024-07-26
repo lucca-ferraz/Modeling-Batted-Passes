@@ -3,10 +3,18 @@ title: "Examining Batted Passes in the NFL"
 author: "Lucca Ferraz, Maggie Byers, Yixin (Amelia) Yuan"
 format: 
   revealjs: 
-    theme: sky
+    theme: edtheme2.scss
     slide-number: true
+    transition: slide
     embed-resources: true
 editor: visual
+toc: true
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: true
+
 ---
 
 # Intro {.smaller}
@@ -38,7 +46,7 @@ editor: visual
     -   Random effects - quarterback, defensive team
     -   Fixed effects - QB height, pass location, number of players in backfield, pass rushers
 
-# Exploratory Data Analysis {.smaller}
+# [Initial data analysis showed no influence from QB height]{.r-text-fit}
 
 ```{r}
 #| echo: false
@@ -46,28 +54,79 @@ editor: visual
 #| message: true
 #| warning: false
 #| fig-align: "center"
-# install.packages("ggthemes")
-library(ggthemes)
 
-#creating dataset
 library(tidyverse)
 library(readxl)
 # install.packages("ggthemes")
 library(ggthemes)
-library(nflverse)
-library(lme4)
-library(broom.mixed)
+
 #creating dataset
 player_data <- nflreadr::load_players()
 all_plays2023 <- nflreadr::load_pbp()
-pass_plays2023 <- all_plays2023 |> 
-  filter(play_type == "pass")
-batted_passes <- read_excel("2019-2023 Batted Passes.xlsx")
+batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
 excel_batted <- batted_passes
 excel_batted$is_batted <- 1
 excel_simple <- excel_batted |> 
   mutate(across(c("HOME", "AWAY"), ~ str_replace(
     string = .x, pattern = "LAR", replacement = "LA"))) |> 
+  select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
+
+all_plays2023 <- left_join(all_plays2023, excel_simple)
+all_plays2023$is_batted <- all_plays2023$is_batted |> 
+  replace_na(0)
+pass_plays2023 <- all_plays2023 |> 
+  filter(play_type == "pass")
+
+
+pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
+
+#plotting
+pass_by_qb <- pass_by_qb |> 
+  group_by(passer_player_name) |>   
+  mutate(total_passes = n(), 
+            total_batted_passes = sum(is_batted), 
+            qb_height = mean(height)) |> 
+  filter(total_passes>100)
+pass_by_qb |> 
+  ggplot(aes(x = qb_height, color = factor(is_batted))) +
+  geom_density() +
+  theme_clean() +
+  theme(legend.position = "bottom") + 
+  labs(
+    title = "Density Plot of Passes by QB Height", 
+    x = "QB Height (inches)", 
+    y = "Density", 
+    color = "Batted"
+  ) 
+```
+
+
+
+
+
+
+# QB Coefficients {.smaller}
+
+```{r}
+#| echo: false
+#| eval: true
+#| message: true
+#| warning: false
+
+library(nflverse)
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(Matrix)
+#creating dataset
+player_data <- nflreadr::load_players()
+all_plays2023 <- nflreadr::load_pbp()
+batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
+excel_batted <- batted_passes
+excel_batted$is_batted <- 1
+excel_simple <- excel_batted |> 
+  mutate(across(c("HOME", "AWAY"), ~ str_replace(
+   string = .x, pattern = "LAR", replacement = "LA"))) |> 
   select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
 
 ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
@@ -77,8 +136,6 @@ ftn_charting_clean <- ftn_charting |>
 pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
   filter(play_type == "pass")
 pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
-
-pass_plays2023 <- left_join(pass_plays2023, excel_simple)
 
 merged_ftn <- pass_plays20222023 |> 
   select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
@@ -99,7 +156,7 @@ qb_heights <- qbs |>
   select(passer_player_id = gsis_id, height)
 
 merged_ftn <- merged_ftn |> 
-  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |>
   rename(qb_height = height)
 
 merged_ftn2023 <- merged_ftn |> 
@@ -131,10 +188,11 @@ tidy_coef22 <- tidy(full_model2022, effects = "ran_vals") |>
 tidy_coef23 <- tidy(full_model2023, effects = "ran_vals") |> 
   mutate(season = 2023)
 
-pass_by_qb <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
+<<<<<<< HEAD
+pass_plays2023 <- left_join(pass_plays2023, player_data, by = join_by(passer_player_id == gsis_id)) 
 
 #plotting
-pass_by_qb <- pass_by_qb |> 
+pass_by_qb <- pass_plays2023 |> 
   group_by(passer_player_name) |>   
   mutate(total_passes = n(), 
             total_batted_passes = sum(is_batted), 
@@ -151,11 +209,38 @@ pass_by_qb |>
     y = "Density", 
     color = "Batted"
   ) 
+=======
+
+tidy_model23 <- tidy(full_model2023) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2023) 
+
+tidy_model22 <- tidy(full_model2022) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2022)
+
+#plotting
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "passer_name_id") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  ) |> 
+  mutate(gsis_id = word(level, 2),
+         name = word(level, 1)) |> 
+  ggplot(aes(estimate_2022, estimate_2023)) +
+  #geom_nfl_headshots(aes(player_gsis = gsis_id), height = 0.2, width = 0.1, alpha = 0.5) +
+  geom_point(color = "blue4") +
+  ggthemes::theme_clean() +
+  labs(title = "QB Coefficients for 2022 and 2023", 
+       subtitle = "Higher estimates correspond to more batted passes",
+       x = "2022 Estimate", y = "2023 Estimate") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", alpha = 0.7)
+>>>>>>> 532e36a7c9f2fe4d1dc0f5417e5c4b9fcbcc8a15
 ```
 
-::: r-stack
-Initial data analysis showed no influence from QB height
-:::
 
 # Model Coefficient Plot {.smaller}
 
@@ -164,6 +249,93 @@ Initial data analysis showed no influence from QB height
 #| eval: true
 #| message: true
 #| warning: false
+
+
+library(nflverse)
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(Matrix)
+#creating dataset
+player_data <- nflreadr::load_players()
+all_plays2023 <- nflreadr::load_pbp()
+batted_passes <- read_excel("/Users/magsb/Desktop/SURE/2019-2023_batted_passes.xlsx")
+excel_batted <- batted_passes
+excel_batted$is_batted <- 1
+excel_simple <- excel_batted |> 
+  mutate(across(c("HOME", "AWAY"), ~ str_replace(
+   string = .x, pattern = "LAR", replacement = "LA"))) |> 
+  select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
+
+ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
+ftn_charting_clean <- ftn_charting |> 
+  select(game_id = nflverse_game_id, play_id = nflverse_play_id, 
+         starting_hash:n_pass_rushers, -is_qb_sneak)
+pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
+  filter(play_type == "pass")
+pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
+
+merged_ftn <- pass_plays20222023 |> 
+  select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
+         pass_defense_1_player_name, is_batted) |> 
+  left_join(ftn_charting_clean) |> 
+  select(-qb_kneel, -qb_spike) |> 
+  mutate(game_date = as.Date(game_date),
+         year = substr(old_game_id, 1, 4),
+         season = ifelse(game_date < as.Date("2023-02-13"), 2022, 2023))
+merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
+
+all_players <- nflreadr::load_players()
+active_qbs <- all_players |> 
+  filter(status == "ACT" & position == "QB")
+qbs <- all_players |> 
+  filter(position == "QB")
+qb_heights <- qbs |> 
+  select(passer_player_id = gsis_id, height)
+
+merged_ftn <- merged_ftn |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |>
+  rename(qb_height = height)
+
+merged_ftn2023 <- merged_ftn |> 
+  filter(season == 2023) |> 
+  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
+merged_ftn2022 <- merged_ftn |> 
+  filter(season == 2022) |> 
+  mutate(passer_name_id = paste(passer_player_name, passer_player_id))
+
+pass_plays20192023 <- load_pbp(seasons = c(2019, 2020, 2021, 2022, 2023)) |> 
+  filter(play_type == "pass")
+pass_plays20192023 <- left_join(pass_plays20192023, excel_simple)
+pass_plays20192023$is_batted <- pass_plays20192023$is_batted |> 
+  replace_na(0)
+
+full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2023)
+
+full_model2022 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2022)
+
+tidy_coef22 <- tidy(full_model2022, effects = "ran_vals") |> 
+  mutate(season = 2022)
+
+tidy_coef23 <- tidy(full_model2023, effects = "ran_vals") |> 
+  mutate(season = 2023)
+
+
+tidy_model23 <- tidy(full_model2023) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2023) 
+
+tidy_model22 <- tidy(full_model2022) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2022)
+
+#plotting
 library(broom.mixed)
 #install.packages("dotwhisker")
 library(dotwhisker)
@@ -203,17 +375,6 @@ Most consistent model variables: - Number of Pass Rushers - Middle Passes
 QB Height has an impact in the 2023 model but not 2022
 :::
 
-# Results 2 {.smaller}
-
-```{r}
-#| echo: false
-#| eval: true
-#| message: true
-#| warning: false
-library(tidyverse)
-
-1+1
-```
 
 # Results 3 {.smaller}
 
@@ -230,9 +391,10 @@ library(tidyverse)
 # Discussion {.smaller}
 
 -   Overall defensive characteristics determine more of the variance of batted passes
--   More Batted Passes?
+-   Create More Batted Passes?
     -   More Pass Rushers
     -   Middle Passes
--   Less Batted Passes?
+-   Limit Batted Passes?
     -   Taller QBs
     -   More Offensive Backfielders
+  

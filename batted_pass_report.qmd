@@ -38,7 +38,6 @@ We were also provided data by For The Numbers (FTN) which proved to be an invalu
 The FTN data also contained detailed formation level data from the 2022 and 2023 seasons.
 By combining the data from both sources, we were able to get a detailed picture of what happened in every play of every game.
 We decided to focus on the two most recent NFL seasons, 2022 and 2023, for the majority of our analysis.
-
 One of our biggest data cleaning steps was making sure each team's initials were done the same in the FTN and nflverse datasets.
 Only one team was different, the Los Angeles Rams were shortened to "LA" in one dataset and "LAR" in the other.
 Also before merging datasets, we created a column in the FTN data to indicate with a 1 that every pass was batted and after merging, assigned each N/A value to be 0, indicating the pass was not batted.
@@ -46,18 +45,13 @@ We also had to assign what season every game was in as the data currently only i
 We merged in two separate nflverse datasets, one for the play by play data and one for player data from which we were able to get quarterback heights.
 After merging all the cleaned datasets, we filtered out all events that were not passes.
 
-We began exploring the data by creating visualizations displaying quarterback height and the count and percentage of batted passes they have thrown.
-From our initial exploration, all of our graphics showed that height does not have a significant impact on if a pass gets batted down.
-
-```{r qb height}
-#| fig-width: 5
-#| fig-height: 3.5
-#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
-
+```{r}
+#| tbl-cap: "Example data after cleaning"
 library(tidyverse)
 library(readxl)
 # install.packages("ggthemes")
 library(ggthemes)
+library(nflverse)
 #creating dataset
 player_data <- nflreadr::load_players()
 all_plays2023 <- nflreadr::load_pbp()
@@ -77,6 +71,12 @@ pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |>
   filter(play_type == "pass")
 pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
 
+pass_plays2023 <- load_pbp(2023) |> 
+  filter(play_type == "pass")
+pass_plays2023 <- pass_plays2023 |> left_join(excel_simple)
+pass_plays2023$is_batted <- pass_plays2023$is_batted |> 
+  replace_na(0)
+
 merged_ftn <- pass_plays20222023 |> 
   select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
          pass_defense_1_player_name, is_batted) |> 
@@ -94,6 +94,7 @@ qbs <- all_players |>
   filter(position == "QB")
 qb_heights <- qbs |> 
   select(passer_player_id = gsis_id, height)
+rm(all_players, active_qbs)
 
 merged_ftn <- merged_ftn |> 
   left_join(qb_heights, by = join_by(passer_player_id)) |> 
@@ -111,7 +112,17 @@ pass_plays20192023 <- load_pbp(seasons = c(2019, 2020, 2021, 2022, 2023)) |>
 pass_plays20192023 <- left_join(pass_plays20192023, excel_simple)
 pass_plays20192023$is_batted <- pass_plays20192023$is_batted |> 
   replace_na(0)
+knitr::kable(merged_ftn |> slice_sample(n = 5) |> select(PlayID = play_id, Week = week, Offense = posteam, Defense = defteam, Yardline = yrdln, Quarter = qtr, Down = down, Distance = ydstogo, Playtype = play_type, YardsGained = yards_gained, PassLength = pass_length, PassLocation = pass_location, AirYards = air_yards, Quarterback = passer_player_name, NumPassRushers = n_pass_rushers, NumOffensiveBackfield = n_offense_backfield, QuarterbackHeight = qb_height))
+```
 
+
+## Exploratory Data Analysis (EDA)
+We began exploring the data by creating visualizations displaying quarterback height and the count and percentage of batted passes they have thrown.
+From our initial exploration, all of our graphics showed that height does not have a significant impact on if a pass gets batted down.
+
+```{r qb height}
+#| fig-cap: "This graph shows the density plots of non-batted passes (red) and batted passes (blue) by quarterback height (inches). There is no skew in the batted pass density plot to suggest that either shorter or taller quarterbacks throw more batted passes. "
+rm(ftn_charting)
 full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
                           pass_location + qb_location + n_offense_backfield + 
                           is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
@@ -155,8 +166,6 @@ Short passes are significantly more likely to be batted down than deep passes.
 Similarly, passes thrown towards the middle of the field are slightly more likely to be batted when compared to passes thrown to the left or right sides of the field.
 
 ```{r pass location}
-#| fig-width: 5
-#| fig-height: 3.5
 #| fig-cap: "This graph shows the overall percentage of passes that are batted for each direction (right, left, middle). Middle passes are most likely to be batted with left and right having very similar, lower percentages."
 
 #plotting
@@ -180,8 +189,6 @@ There was no clear indication of one formation creating more batted passes than 
 We also knew how many offensive players were in the backfield on each play and our graphs showed that more offensive players in the backfield lead to less batted passes.
 
 ```{r qb starting location}
-#| fig-width: 5
-#| fig-height: 3.5
 #| fig-cap: "This graph shows the overall percentage of passes that are batted for each quarterback starting position, under center, pistol and shotgun. Under center plays were the least likely to be batted both years but shotgun and pistol switched being most and second most likely from 2022 to 2023."
 
 library(tidyverse)
@@ -348,8 +355,6 @@ This plot shows the estimates for all the fixed effects in our model, colored by
 ## Random Effects Coefficient Estimates
 
 ```{r qb def team variance model}
-#| fig-width: 5
-#| fig-height: 3.5
 #| fig-cap: "Scatterplot displaying each NFL teams' defensive coefficient estimate for both 2022 and 2023"
 
 library(tidyverse)
@@ -375,8 +380,6 @@ bind_rows(tidy_coef22, tidy_coef23) |>
 From this plot, we can see that the Chiefs defense stands out as an outlier in batting down passes in both years. Whether it is by scheme or personnel, Steve Spagnuolo's unit consistently exceeds in knocking down balls and have had great success in winning back-to-back Super Bowls.
 
 ```{r}
-#| fig-width: 5
-#| fig-height: 3.5
 #| fig-cap: "Scatterplot displaying each quarterback's random effect coefficient estimate for both 2022 and 2023"
 bind_rows(tidy_coef22, tidy_coef23) |> 
   filter(group == "passer_name_id") |> 
@@ -400,53 +403,69 @@ bind_rows(tidy_coef22, tidy_coef23) |>
 
 Both the defensive team and quarterback scatterplots show a moderate positive relationship between estimates in 2022 and estimates in 2023. With correlation values of around 0.3, we see that batted passes at the individual level are relatively consistent from year to year. Teams and quarterbacks can certainly improve or falter in terms of batting passes down (or getting less passes batted) but overall, they tend to not change too dramatically over the course of one offseason. 
 
+## Best and Worst Quarterbacks
+
+```{r}
+#| layout-ncol: 2
+library(gt)
+passer_estimates <- bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "passer_name_id") |> 
+  mutate(gsis_id = word(level, 2),
+         name = word(level, 1)) |> 
+  select(name, gsis_id, season, estimate) |> 
+  arrange(desc(estimate))
+
+passer_estimates22 <- passer_estimates |> 
+  filter(season == 2022)
+
+top_and_bottom_passers22 <- bind_rows(head(passer_estimates22, 5),
+                                      tail(passer_estimates22, 5))
+
+top_and_bottom_passers22 |> 
+  gt() |> 
+  tab_header(title = md("**Highest and Lowest QB Estimates in 2022**"),
+             subtitle = md("*Higher estimates correspond to more batted passes*")) |> 
+  gt_nfl_headshots("gsis_id", height = 40) |> 
+  cols_align(align = "center", columns = name) |> 
+  cols_align(align = "left", columns = gsis_id) |> 
+  cols_label(name = "Quarterback", gsis_id = "", estimate = "Estimate") |> 
+  data_color(columns = estimate, palette = "RdYlGn", reverse = TRUE) |> 
+  gtExtras::gt_theme_538()
+
+passer_estimates23 <- passer_estimates |> 
+  filter(season == 2023)
+top_and_bottom_passers23 <- bind_rows(head(passer_estimates23, 5), tail(passer_estimates23, 5))
+
+top_and_bottom_passers23 |> 
+  gt() |> 
+  tab_header(title = md("**Highest and Lowest QB Estimates in 2023**"),
+             subtitle = md("*Higher estimates correspond to more batted passes*")) |> 
+  gt_nfl_headshots("gsis_id", height = 40) |> 
+  cols_align(align = "center", columns = name) |> 
+  cols_align(align = "left", columns = gsis_id) |> 
+  cols_label(name = "Quarterback", gsis_id = "", estimate = "Estimate") |> 
+  data_color(columns = estimate, palette = "RdYlGn", reverse = TRUE) |> 
+  gtExtras::gt_theme_538()
+```
+These tables provide an overview of the best and worst quarterbacks in the NFL when it comes to batted passes. Patrick Mahomes, one of the NFL's best quarterbacks, is the only one to maintain his spot in the top five in both seasons. 
+
+One interesting case study we examined was the case of Bryce Young of the Carolina Panthers. A former number one overall pick in the draft at just 5 foot 10, questions were raised both in the pre-draft process and post-draft about his height. Young had an up-and-down rookie year as the Panthers finished just 3-13, so one is inclined to believe his height correlated with his struggles. Perhaps so, however, in the table above we see that Young's random effect in relation to batted passes was actually the *best* in the NFL this past season! So does this dispel the notion that shorter quarterbacks have more batted passes? Well... not quite...
+
+Young's random effect coefficient is the best in the league, however, this is without accounting for the fixed effects, which *include* QB height. Once the model penalty for height is accounted for, he no longer ranks in the top five. On the bright side, he still does not reach the bottom five (or anywhere close), signifying that there is something about his game that allows him to "outperform" his small stature and avoid batted passes. The same cannot be said about a fellow vertically-challenged quarterback, Kyler Murray, who stands at the same 5 foot 10 yet whose random effect ranks bottom three in the NFL this past season for batted passes. Once incorporating the height coefficient from the fixed effects, Murray ranks dead last. Maybe size does matter after all...
+
 # Discussion
 
 Our goal for this project was to determine what factors have the biggest impacts on if a pass is batted or not. The low variance of the quarterback throwing the ball shows that quarterbacks have much less impact on batted passes when compared to the defensive team they are against. Some defensive team created many more batted passes than others which the high variance our model found supports. 
-We also found that play dependent factors such as number of pass rushers or number of offensive backfielders had nonzero estimates, meaning they do affect the chances of a batted pass. More pass rushers slightly increases the chances of a batted pass. Having more offensive backfielders decreases the chance of a batted pass and had more impact than the number of pass rushers. Passing towards the middle significantly increases the probability of the pass being batted. Although our initial data exploration showed that height did not impact batted passes, our 2023 season model showed that height has a log odds ratio below 0, which implies that the taller a quarterback is, the less likely they are to throw batted passes. Our 2022 model has a log odds ratio of less than 0 but the confidence interval includes 0 so we cannot conclude anything from that model. 
+We also found that play dependent factors such as number of pass rushers or number of players in the offensive backfield had nonzero estimates, meaning they do affect the chances of a batted pass. More pass rushers slightly increases the chances of a batted pass. Having more players in the offensive backfield decreases the chance of a batted pass and had more impact than the number of pass rushers. Passing towards the middle significantly increases the probability of the pass being batted.
 
+Although our initial data exploration showed that height did not impact batted passes, our 2023 season model showed that height has a log odds ratio below 0, which implies that the taller a quarterback is, the less likely they are to throw batted passes. Our 2022 model has a log odds ratio of less than 0 but the confidence interval includes 0 so we cannot conclude anything from that model. 
+
+## Limitations
 A large part of our model included variables that came from the FTN charting data such as numbers of pass rushers and offensive backfielders for each play. Because this data is only available for the 2022 and 2023 seasons, we were only able to create models for those two years. This limits our ability to inspect long term trends and draw conclusions on anything more than a year to year basis. We also had limited tracking data available to us and limited time so we decided not to include tracking at this moment. 
 
+## Next Steps
 Next steps for this project include bringing in the publicly available tracking data from the NFL Big Data Bowl and StatsBomb. We would also add data from the load participation package from nflverse which would give us a list of players on the field for each play. This would allow us to look deeper into what impact individual defensive players have. 
 
-## Appendix
+# Acknowledgements
 
-Mathematics can be written with LaTeX syntax using dollar signs.
-For instance, using single dollar signs we can write inline math: $(-b \pm \sqrt{b^2 - 4ac})/2a$.
-
-To write math in "display style", i.e. displayed on its own line centered on the page, we use double dollar signs: $$
-x^2 + y^2 = 1
-$$
-
-### Tables
-
-Use the `knitr::kable()` function to print tables as HTML:
-
-```{r}
-mtcars |> 
-  slice(1:5) |> 
-  knitr::kable()
-```
-
-We can summarize model results with a table.
-For instance, suppose we fit a linear regression model:
-
-```{r}
-#| echo: true
-model1 <- lm(mpg ~ disp + hp + drat, data = mtcars)
-```
-
-It is *not* appropriate to simply print `summary(model1)` into the report.
-If we want the reader to understand what models we have fit and what their results are, we should provide a nicely formatted table.
-A simple option is to use the `tidy()` function from the `broom` package to get a data frame of the model fit, and simply report that as a table.
-
-```{r }
-#| results: "asis"
-#| tbl-cap: "Predicting fuel economy using vehicle features."
-
-library(broom)
-model1 |> 
-  tidy() |>
-  knitr::kable(digits = 2,
-               col.names = c("Term", "Estimate", "SE", "t", "p"))
-```
+We would like to thank Dr. Ron Yurko for all of his guidance and mentorship in completing this project. We would also like to thank Quang Nguyen for all of his instruction and support throughout the summer research experience. A special shout out goes out to For The Numbers (FTN) for so graciously providing the batted passes data. Finally, a huge thanks goes out to everyone involved in the Carnegie Mellon Sports Analytics Camp in any capacity for allowing us such a fantastic opportunity. 
