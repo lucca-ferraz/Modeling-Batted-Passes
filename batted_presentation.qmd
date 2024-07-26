@@ -1,3 +1,299 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fe317175f8b1c3bf7277a4954e51287b11e0f57835c19fdb940ea6105a3cf39f
-size 13339
+---
+title: "Examining Batted Passes in the NFL"
+subtitle: "***A Hierarchical Approach to Explaining Variance of an Unlikely Event***"
+author: "Lucca Ferraz, Maggie Byers, Yixin (Amelia) Yuan"
+format: 
+  revealjs: 
+    theme: edtheme2.scss
+    slide-number: true
+    transition: slide
+    embed-resources: true
+editor: visual
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: true
+
+---
+
+# Motivation: Bryce Young
+- Number one pick in 2023
+    -   Stands at just 5 foot 10
+    -   Critics argued he wouldn't be able to see over the defense
+
+![](bryceyoungbatted.png)
+
+# Introduction {.smaller}
+
+-   Exploring the factors that go into causing batted passes
+    -   Batted pass: defender hits the ball down shortly after QB releases it
+    -   Typically results in incomplete pass, no yards gained
+-   Initial characters
+    -   QB height
+    -   Offensive formation
+    -   Defense formation
+    -   Pass type
+    -   Overall related more to defense or offense
+
+# Data {.smaller}
+
+-   Data from nflreadr
+    -   Play by play data 2016 through 2023
+    -   Player info - QB height
+    -   Did not have information on which passes were batted
+-   For The Numbers (FTN)
+    -   Included tipped and batted passes from 2019 - 2023 seasons
+    -   Detailed formation information from 2022 and 2023 seasons
+
+# Methods {.smaller}
+
+-   Focused on explaining variance, not predicting batted passes
+-   Multilevel Logistic Model
+    -   Multilevel model deals with randomness and dependence of data
+    -   Logistic model accounts for binary outcome
+    -   **Random effects** - quarterback, defensive team
+    -   **Fixed effects** - QB height, pass location, number of players in backfield, pass rushers
+
+# EDA{.smaller}
+
+```{r}
+#| echo: false
+#| eval: true
+#| message: true
+#| warning: false
+#| fig-align: "center"
+library(tidyverse)
+library(readxl)
+# install.packages("ggthemes")
+library(ggthemes)
+# install.packages("nflverse")
+library(nflverse)
+player_data <- load_players()
+all_plays2023 <- nflreadr::load_pbp()
+library(readxl)
+excel_batted <- read_excel("~/Downloads/CMSACamp/2019-2023 Batted Passes.xlsx")
+excel_batted$is_batted <- 1
+
+excel_simple <- excel_batted |> 
+  mutate(across(c("HOME", "AWAY"), ~ str_replace(
+    string = .x, pattern = "LAR", replacement = "LA"))) |> 
+  select(week = WEEK, home_team = HOME, away_team = AWAY, play_id = `PLAY ID`, is_batted)
+
+all_plays2023 <- left_join(all_plays2023, excel_simple)
+all_plays2023$is_batted <- all_plays2023$is_batted |> 
+  replace_na(0)
+pass_plays2023 <- all_plays2023 |> 
+  filter(play_type == "pass")
+
+pass_plays20192023 <- load_pbp(seasons = c(2019, 2020, 2021, 2022, 2023)) |> 
+  filter(play_type == "pass")
+pass_plays20192023 <- left_join(pass_plays20192023, excel_simple)
+pass_plays20192023$is_batted <- pass_plays20192023$is_batted |> 
+  replace_na(0)
+
+ftn_charting <- nflreadr::load_ftn_charting(seasons = c(2022, 2023))
+ftn_charting_clean <- ftn_charting |> 
+  select(game_id = nflverse_game_id, play_id = nflverse_play_id, 
+         starting_hash:n_pass_rushers, -is_qb_sneak)
+pass_plays20222023 <- load_pbp(seasons = c(2022, 2023)) |> 
+  filter(play_type == "pass")
+pass_plays20222023 <- left_join(pass_plays20222023, excel_simple)
+
+merged_ftn <- pass_plays20222023 |> 
+  select(play_id:air_yards, qb_hit, passer_player_id, passer_player_name, pass_defense_1_player_id,
+         pass_defense_1_player_name, is_batted) |> 
+  left_join(ftn_charting_clean) |> 
+  select(-qb_kneel, -qb_spike) |> 
+  mutate(game_date = as.Date(game_date),
+         year = substr(old_game_id, 1, 4),
+         season = ifelse(game_date < as.Date("2023-02-13"), 2022, 2023))
+merged_ftn$is_batted <- merged_ftn$is_batted |> replace_na(0)
+
+all_players <- nflreadr::load_players()
+active_qbs <- all_players |> 
+  filter(status == "ACT" & position == "QB")
+qbs <- all_players |> 
+  filter(position == "QB")
+qb_heights <- qbs |> 
+  select(passer_player_id = gsis_id, height)
+
+merged_ftn <- merged_ftn |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  rename(qb_height = height)
+
+merged_ftn$passer_name_id <- paste(merged_ftn$passer_player_name, merged_ftn$passer_player_id)
+
+merged_ftn2023 <- merged_ftn |> 
+  filter(season == 2023)
+
+merged_ftn2022 <- merged_ftn |> 
+  filter(season == 2022)
+
+pass_plays20192023 <- pass_plays20192023 |> 
+  left_join(qb_heights, by = join_by(passer_player_id)) |> 
+  rename(qb_height = height)
+pass_plays2023 <- all_plays2023 |> filter(play_type == "pass")
+pass_plays2023 <- left_join(pass_plays2023, excel_simple)
+pass_by_qb <- left_join(pass_plays2023, qb_heights, by = join_by(passer_player_id == passer_player_id)) 
+#plotting
+pass_by_qb <- pass_by_qb |> 
+  group_by(passer_player_name) |>   
+  mutate(total_passes = n(), 
+            total_batted_passes = sum(is_batted), 
+            qb_height = mean(height)) |> 
+  filter(total_passes>100)
+pass_by_qb |> 
+  ggplot(aes(x = qb_height, color = factor(is_batted))) +
+  geom_density() +
+  theme_clean() +
+  theme(legend.position = "bottom") + 
+  labs(
+    title = "Density Plot of Passes by QB Height", 
+    x = "QB Height (inches)", 
+    y = "Density", 
+    color = "Batted"
+  ) 
+```
+Height did not appear to have an impact on batted passes
+
+# Model Coefficient Plot {.smaller}
+
+```{r}
+#| echo: false
+#| eval: true
+#| message: true
+#| warning: false
+library(nflverse)
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(Matrix)
+#plotting
+library(broom.mixed)
+#install.packages("dotwhisker")
+library(dotwhisker)
+full_model2023 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2023)
+
+full_model2022 <- glmer(is_batted ~ (1 | passer_name_id) + (1 | defteam) + qb_height +
+                          pass_location + qb_location + n_offense_backfield + 
+                          is_play_action + is_rpo + is_qb_out_of_pocket + n_pass_rushers,
+                        family = binomial, data = merged_ftn2022)
+
+tidy_coef22 <- tidy(full_model2022, effects = "ran_vals") |> 
+  mutate(season = 2022)
+
+tidy_coef23 <- tidy(full_model2023, effects = "ran_vals") |> 
+  mutate(season = 2023)
+tidy_model23 <- tidy(full_model2023) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2023) 
+tidy_model22 <- tidy(full_model2022) |> 
+  filter(is.na(group)) |> 
+  mutate(model = 2022)
+bind_rows(tidy_model23, tidy_model22) |> 
+  filter(!is.na(std.error) & !is.na(estimate)) |> 
+  relabel_predictors(qb_height = "QB Height", pass_locationmiddle = "Pass Middle",
+                     pass_locationright = "Pass Right", qb_locationS = "Shotgun", 
+                     qb_locationU = "Under Center", 
+                     n_offense_backfield = "# of Players in Off. Backfield",
+                     is_play_actionTRUE = "Play-Action Pass", is_rpoTRUE = "Run-Pass Option",
+                     is_qb_out_of_pocketTRUE = "QB Outside of Pocket", 
+                     n_pass_rushers = "# of Pass Rushers",
+                     qb_locationP = "Pistol") |> 
+  dwplot(ci = 0.68, vline = geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5),
+         dot_args = list(size = 3), whisker_args = list(size = .6)) +
+    aes(alpha = !(std.error >= abs(estimate))) +
+    scale_alpha_manual(breaks = c(FALSE, TRUE), values = c(0.25, 1), guide = "none"
+                       ) +
+    ggthemes::scale_color_fivethirtyeight() +
+    theme_bw() + 
+    labs(color = "Model", alpha = "") +
+  theme(legend.position = "bottom")
+```
+-   The most consistent model variables are **Number of Pass Rushers** and **Middle Passes**
+
+-   **QB Height** has an impact in the 2023 model but not 2022
+
+
+# Defensive Coefficients {.smaller}
+
+```{r}
+#| echo: false
+#| eval: true
+#| message: true
+#| warning: false
+library(tidyverse)
+bind_rows(tidy_coef22, tidy_coef23) |> 
+  filter(group == "defteam") |> 
+  pivot_wider(
+    id_cols = level,
+    names_from = season,
+    values_from = c(estimate, std.error)
+  ) |> 
+  ggplot(aes(estimate_2022, estimate_2023)) +
+  geom_nfl_logos(aes(team_abbr = level), width = 0.075, height = 0.1, alpha = 0.7) +
+  ggthemes::theme_clean() +
+  labs(title = "Defensive Team Coefficients for 2022 and 2023", 
+       subtitle = "Higher estimates correspond to more batted passes",
+       x = "2022 Estimate", y = "2023 Estimate") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", alpha = 0.7)
+```
+
+The Chiefs defense is an outlier both years, batting down passes at an elite rate
+
+# Best and Worst QBs - 2022
+![](gtplot22){fig-align="center"}
+
+# Best and Worst QBs - 2023
+![](gtplot23){fig-align="center"}
+
+# So... Does Size Really Matter?{.smaller}
+
+Bryce Young appears to be the best quarterback in the league at avoiding batted passes
+
+. . . 
+
+-   However, the quarterback height fixed effect still needs to be accounted for
+
+. . .
+
+  -   Once factored in, Young is no longer in the top 5 (although he is still top half)
+
+. . .
+
+On the opposite side of the spectrum of short QBs, we have Kyler Murray
+
+. . .
+
+-   His random effect already places him bottom 3 in the league
+
+. . .
+
+  -   Once accounting for height, his estimate is last in the NFL
+
+# Discussion {.smaller}
+
+Overall defensive characteristics determine more of the variance of batted passes
+
+. . .
+
+**What Creates More Batted Passes?**
+
+. . . 
+
+  -   More Pass Rushers
+  -   Middle Passes
+
+. . .
+
+**What Limits Batted Passes?**
+
+. . . 
+
+  -   Taller QBs
+  -   More Players in the Offensive Backfield
